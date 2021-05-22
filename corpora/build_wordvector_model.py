@@ -19,24 +19,6 @@ from gensim.models.word2vec import Word2Vec, PathLineSentences
 import os
 
 DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
-
-#
-#　Create tokens (word broken texts)
-#
-sp = spm.SentencePieceProcessor()
-sp.Load("sentencepiece.model")
-for src in glob.glob("./texts/*"):
-    # 3. ファイルをひとつずつ処理していく。
-    # src = "articles/AA/wiki_00"
-    print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:\t{src}')
-    with codecs.open(src, 'r', 'utf-8') as f:
-        sentences = []
-        dst = DATA_FOLDER + f'/contents/wiki{len(glob.glob("./contents/wiki*"))+1}'
-        lines = f.read().splitlines()
-        for line in lines:
-          words = " ".join(sp.EncodeAsPieces(line))
-          sentences.append(words)
-        print(*sentences, sep="\n", file=codecs.open(dst, 'w', 'utf-8'))
 #
 # Build Word Vector Model
 #
