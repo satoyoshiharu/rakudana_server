@@ -20,6 +20,16 @@ import os
 
 DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 
+def strip_spacemark(inputtokenlist):
+    #print(inputtokenlist)
+    outtokenlist = []
+    for t in inputtokenlist:
+        t = t.replace('▁','')
+        if t!='':
+            outtokenlist.append(t)
+    #print(outtokenlist)
+    return outtokenlist
+
 #
 #　Create tokens (word broken texts)
 #
@@ -31,10 +41,13 @@ for src in glob.glob(DATA_FOLDER + "/texts/*"):
     print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:\t{src}')
     with codecs.open(src, 'r', 'utf-8') as f:
         sentences = []
-        numFile = len(glob.glob(DATA_FOLDER + "/contents/*"))
+        numFile = len(glob.glob(DATA_FOLDER + "/wordbreaks/*"))
         dst = DATA_FOLDER + f'/contents/wb{numFile+1}'
         lines = f.read().splitlines()
         for line in lines:
-          words = " ".join(sp.EncodeAsPieces(line))
-          sentences.append(words)
+            if len(line)>0:
+                word_break = sp.EncodeAsPieces(line)
+                word_break = strip_spacemark(word_break)
+                words = " ".join(word_break)
+                sentences.append(words)
         print(*sentences, sep="\n", file=codecs.open(dst, 'w', 'utf-8'))

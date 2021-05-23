@@ -23,7 +23,7 @@ DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 # Build Word Vector Model
 #
 SIZE = 100
-MIN_COUNT = 300
+MIN_COUNT = 100
 WINDOW = 5
 SG = 1
 #dirname = f"size{SIZE}-min_count{MIN_COUNT}-window{WINDOW}-sg{SG}"
@@ -31,7 +31,7 @@ SG = 1
 #    os.mkdir(DATA_FOLDER+"/model/"+dirname)
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 model = Word2Vec(
-    PathLineSentences(DATA_FOLDER+'/contents'),
+    PathLineSentences(DATA_FOLDER+'/wordbreaks'),
     vector_size=SIZE,
     min_count=MIN_COUNT,
     window=WINDOW,
