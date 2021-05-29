@@ -21,6 +21,7 @@ class NER():
         self.entityList = []
 
     def findEntity(self, morphs):
+        print('NER.findEntity > ...')
         maxI = len(morphs) - 1
         i = 0
         while True:
