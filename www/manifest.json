@@ -1,0 +1,20 @@
+{
+  "name": "げんきかい",
+  "short_name": "げんきかい",
+  "icons": [
+    {
+      "src": "./image/logo_xxxhdpi_192x192_rounded.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./image/logo_512x512_rounded.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#c6d5ff7e",
+  "theme_color": "#222222"
+}
