@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<!--<meta name="viewport" content="width=device-width, initial-scale=1" />-->
+<meta name="viewport" content="user-scalable=no">
+<!--PWA-->
+<link rel="manifest" href="./manifest.json">
+<script>
+window.addEventListener("load", () => {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register('./service-worker.js').then(function() {
+        console.log('Service Worker Registered');
+    }).catch(function(err) {
+        console.log('ServiceWorker registration failed: ', err);
+    });
+  }
+});
+</script>
+<!--PWA end-->
+<!--iOS PWA-->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="げんきかい">
+<link rel="apple-touch-icon" href="./image/logo_xxxhdpi_192x192_rounded.png">
+<!--End of iOS PWA-->
+<title>げんきかい</title>
+<style type="text/css">
+.dark { background-color: #191970; color:#eeeeee; display: table; width: 100%; height: 100%; }
+.light { background-color: #c6d5ff7e; color:#222222; display: table; width: 100%; height: 100%; }
+#container { display: grid; grid-template-columns: 1fr; grid-template-rows: 50vh 40vh; }
+#display_cell {grid-row: 1/2; grid-column: 1/2;}
+#action1_cell {grid-row: 2/3; grid-column: 1/2; font-size: 5rem;}
+.box { display: table; width: 100%; height: 100%;}
+.cell { display: table-cell; text-align: center; vertical-align: middle;}
+img { max-width: 256px; height: auto; object-fit: contain; }
+html { font-size: 100%; }
+body { font-size: 3rem; }
+</style>
+</head>
+<body id="body" class="light">
+    <div id="container">
+		<div class="box"><div class="cell" id="display_cell">
+            <img>
+        </div></div>
+        <div class="box"><div class="cell" id="action1_cell" >
+            <input type="button" id="start_button" value="開始" style="width:80%;padding:10px;font-size:5rem;background-color:#c6d5ee7e;border-width:10pt;cursol:pointer;" onclick="OnStartButton();"/>
+        </div></div>
+    </div>
+</body>
+</html>
