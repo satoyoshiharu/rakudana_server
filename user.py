@@ -1541,6 +1541,7 @@ if __name__ == '__main__':
     print(f'user port:{user.wsPort},org:{user.org},role:{user.role},invoker:{user.invoker}')
 
     tagger = MeCab.Tagger(r"-u ./user.dic")
+    print(f'tagger type: {type(tagger)}')
     parsed = tagger.parse('私')  # preload dictionary
     user.tagger = tagger
 
