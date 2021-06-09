@@ -47,10 +47,16 @@ ERR_EXCEPTION = 1
 ERR_TIMEOUT = 2
 ERR_TYPEERROR = 3
 
+line_bot_api = None
+line_parser = None
+app = None
+user = None
+
 tagger = None
 tokenizer = None
-wv = None
+wordvectors = None
 intent_classifier = None
+
 
 class Person():
     def __init__(self, sei, seiyomi, mei, meiyomi, id, lineid):
@@ -63,7 +69,7 @@ class Person():
 
 
 class User():
-    def __init__(self, port, org, role, invoker):
+    def __init__(self, port, org, role, invoker, pipe):
         global tagger
         self.wsPort = int(port)
         self.ws = None
@@ -71,6 +77,7 @@ class User():
         self.org = org
         self.role = role
         self.invoker = invoker
+        self.pipe = pipe
         self.person = None
         #self.tagger = MeCab.Tagger("-O dump -r /dev/null -d /usr/share/mecab/dic/ipadic/")
         #self.tagger = MeCab.Tagger("-O dump")
@@ -111,11 +118,13 @@ class Day():
         self.day = day
         self.ampm = ampm
 
+
 class Reservation():
     def __init__(self):
         self.date = None
         self.memberList = []
         #self.member = Person('','','')
+
 
 class Visit():
     def __init__(self):
@@ -123,6 +132,7 @@ class Visit():
         self.memberList = []
 
 #flag_started = False
+
 
 async def browser_handler(request):
     #global flag_started
@@ -154,6 +164,7 @@ async def browser_handler(request):
     #print(user.dialog_history)
     sys.exit(0)
     #return user.ws
+
 
 class ConversationModel():
 
@@ -188,6 +199,7 @@ class ConversationModel():
                 if not self.user.ws.closed: await self.user.ws.send_str(jsonText)
                 return # -> finish
 
+
 def sendJson_sync(url,data):
     print(f'sendJson > {url}, {data}')
     headers = {'Content-Type': 'application/json'}
@@ -196,6 +208,7 @@ def sendJson_sync(url,data):
         print('respose: ', res)
         json_contents = json.load(res)
         print('json contents', json_contents)
+
 
 async def sendJson(url,data):
     print(f'sendJson > {url}, {data}')
@@ -211,6 +224,7 @@ async def sendJson(url,data):
         #    print(traceback.format_exc())
         #    return {}
 
+
 def sendToLine(lineid, message):
     if lineid != None:
         line_bot_api.push_message(lineid, TextSendMessage(text=message))
@@ -221,17 +235,10 @@ def sendToLine(lineid, message):
         line_bot_api.push_message(config.LINE_ADMIN3_USERID, TextSendMessage(text=message))
         line_bot_api.push_message(config.LINE_ADMIN4_USERID, TextSendMessage(text=message))
 
-def detect_intent(text):
-    print('detect_intent > ...')
-    input = torch.tensor(
-        create_training_data.embAvg(text, tokenizer, wv),
-        dtype=torch.float
-    )
-    intent_classifier.eval()
-    with torch.no_grad():
-        intent = torch.argmax(intent_classifier(torch.unsqueeze(input, 0))).item()
-    print(f'detect_intent> {config.intents[intent]}')
-    return intent
+
+
+
+
 
 async def recvJson(ws):
 
@@ -275,18 +282,20 @@ async def recvJson(ws):
         print(jsonDict)
     return sts, jsonDict
 
+
 class Scene():
 
     def __init__(self, user):
         self.user = user
         self.ws = self.user.ws
-        self.tagger = self.user.tagger
         self.error = INF_OK
         self.counter = 0
 
     def getMorphs(self, jsonDict):
         v = jsonDict['recognized']
-        parsed = self.tagger.parse(v)
+        #parsed = self.tagger.parse(v)
+        self.user.pipe.send('tag$' + v)
+        parsed = self.user.pipe.recv()
         morphs = []
         for token in parsed.split('\n'):
             #attr = token.split('\t')
@@ -326,6 +335,20 @@ class Scene():
         scene.counter += 1
         return await scene.interpret()
 
+    def detect_intent(self,text):
+        print('detect_intent > ...')
+        # input = torch.tensor(
+        #     create_training_data.embAvg(text, tokenizer, wordvectors),
+        #     dtype=torch.float
+        # )
+        # intent_classifier.eval()
+        # with torch.no_grad():
+        #     intent = torch.argmax(intent_classifier(torch.unsqueeze(input, 0))).item()
+        # print(f'detect_intent> {config.intents[intent]}')
+        # return intent
+        self.user.pipe.send('intent$' + text)
+        return int(self.user.pipe.recv())
+
     async def decode_response(self):
         print('decode_response')
         sts, jsonDict = await recvJson(self.ws)
@@ -341,7 +364,7 @@ class Scene():
                 # detect entities for following processing
                 self.user.ner.findEntity(morphs)
                 # detect intention
-                intent = detect_intent(jsonDict['recognized'])
+                intent = self.detect_intent(jsonDict['recognized'])
 
         if 'action' in jsonDict and jsonDict['action'] == 'button':
             selection = jsonDict['selection']
@@ -724,7 +747,7 @@ class AskName(Scene):
         print('AskName.interpret')
         sts, jsonDict, morphs, selection, intent = await self.decode_response()
         if sts!=SUCCESS: return []
-        if (self.user.org=='genkikai' and self.user.role=='member' and not self.user.capability_sr):
+        if (self.user.org=='genkikai' and self.user.role=='member' and self.user.device=='iPhone'):# and not self.user.capabilnot self.user.capability_sr):
             print(f'interpret> button action detected: {selection}')
             #["小川","小木曽","島田","久留","渡辺"]
             if selection == '1':
@@ -1518,51 +1541,37 @@ async def close_websockets():
         await user.ws.close()
     print('user.close_websockets > Websocket connections closed')
 
+
 async def on_shutdown(app):
     print('on_shutdown >... ')
     await close_websockets()
-    print('on_shutdown > app.cleanup')
+    print('on_shutdown > manager.cleanup')
     await app.cleanup()
+
 
 def termination_handler(signal,frame):
     sys.exit(0)
 
-if __name__ == '__main__':
-    #
-    # client must access with https://192.168.0.19:8081/www/index.html
-    #
-    print('user is up and running')
 
+def main(userPort, org, role, invoker, childConn):
+
+    global line_parser
+    global line_bot_api
+    global app
+    global user
+
+    print('user is up and running')
     signal.signal(signal.SIGINT, termination_handler)
     signal.signal(signal.SIGTERM, termination_handler)
-
-    args = sys.argv
-    user = User(args[1], args[2], args[3], args[4]) # userPort, org, role, invoker
+    user = User(userPort, org, role, invoker, childConn)
     print(f'user port:{user.wsPort},org:{user.org},role:{user.role},invoker:{user.invoker}')
-
-    tagger = MeCab.Tagger(r"-u ./user.dic")
-    print(f'tagger type: {type(tagger)}')
-    parsed = tagger.parse('私')  # preload dictionary
-    user.tagger = tagger
-
-    if user.invoker == 'rakudana_app':
-
-        tokenizer = spm.SentencePieceProcessor()
-        tokenizer.Load("./corpora/sentencepiece.model")
-
-        wv = KeyedVectors.load('./intent_classifier/wv.model')
-
-        szWV = 100
-        numINTENT = 5
-        intent_classifier = train.Net(szWV, numINTENT)  # .to(device)
-        intent_classifier.load_state_dict(torch.load('./intent_classifier/intent_classifier.model'))
 
     line_bot_api = LineBotApi(config.LINE_CHANNEL_ACCESS_TOKEN)
     line_parser = WebhookParser(config.LINE_CHANNEL_SECRET)
 
     app = None
     ctx = None
-    if config.PROTOCOL=="http":
+    if config.PROTOCOL == "http":
         pass
     else:
         ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -1586,9 +1595,9 @@ if __name__ == '__main__':
         app.router.add_route('GET', '/ws', browser_handler)
         app.on_shutdown.append(on_shutdown)
 
-        #threading.Thread(target=on_startup, args=([app])).start()
+        # threading.Thread(target=on_startup, args=([manager])).start()
 
-        if config.PROTOCOL=="http":
+        if config.PROTOCOL == "http":
             aiohttp.web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort)
         else:
             aiohttp.web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort, ssl_context=ctx)
@@ -1599,8 +1608,10 @@ if __name__ == '__main__':
 
     finally:
         print('user.main > finally')
+        childConn.send('finish$')
         history = [x.__class__.__name__ for x in user.dialog_history]
         print(f'>>>DIALOG HISTORY: {history}')
-        #time.sleep(2) # for shutdown cor to execute
-        #sys.exit(0)
+        # time.sleep(2) # for shutdown cor to execute
+        # sys.exit(0)
+
 

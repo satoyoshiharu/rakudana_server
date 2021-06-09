@@ -40,3 +40,7 @@ intents = {
     INTENT_SENDM:"sendm"
 }
 
+# multiprocess? sibprocess?
+MP = True
+SP = False
+

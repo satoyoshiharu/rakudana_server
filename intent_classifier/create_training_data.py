@@ -39,8 +39,8 @@ if __name__ == '__main__':
   sp.Load("../corpora/sentencepiece.model")
 
   wv_model = Word2Vec.load('../corpora/wordvector.model')
-  wv_model.wv.save('wv.model')
-  model = KeyedVectors.load('wv.model')
+  wv_model.wv.save('wordvectors.model')
+  model = KeyedVectors.load('wordvectors.model')
 
   # def wordbreak(s):
   #   word_break = sp.EncodeAsPieces(s)

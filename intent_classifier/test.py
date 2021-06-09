@@ -7,7 +7,7 @@ import create_training_data
 sp = spm.SentencePieceProcessor()
 sp.Load("../corpora/sentencepiece.model")
 
-wv = KeyedVectors.load('wv.model')
+wv = KeyedVectors.load('wordvectors.model')
 
 szWV = 100
 numINTENT = 5
