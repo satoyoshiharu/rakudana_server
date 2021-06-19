@@ -30,17 +30,18 @@ def embAvg(text, tokenizer, wvmodel):
 if __name__ == '__main__':
 
   import sys
+  import os
   sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
   import config
 
   DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 
   sp = spm.SentencePieceProcessor()
-  sp.Load("../corpora/sentencepiece.model")
+  sp.Load("../tokenizer/sentencepiece.model")
 
-  wv_model = Word2Vec.load('../corpora/wordvector.model')
-  wv_model.wv.save('wordvectors.model')
-  model = KeyedVectors.load('wordvectors.model')
+  wv_model = Word2Vec.load('../wordvector/wordvector.model')
+  wv_model.wv.save('wv.model')
+  model = KeyedVectors.load('wv.model')
 
   # def wordbreak(s):
   #   word_break = sp.EncodeAsPieces(s)
@@ -50,34 +51,54 @@ if __name__ == '__main__':
   df_others = pd.read_csv('/media/sf_E_DRIVE/研究社/ej/kej.txt', header=None, sep='\t', names=['SENTENCE'])
   df_others = df_others[df_others['SENTENCE']!='']
   df_others['INTENT'] = config.INTENT_OTHERS
-  #df_others['SENTENCE'] = df_others['SENTENCE'].map(wordbreak)
 
-  exec(open('../corpora/intent/gen_yes.py').read())
+  CORPORA_DIR = '../corpora/intent/'
+  CUR_DIR = os.getcwd()
+  os.chdir(CORPORA_DIR)
+
+  exec(open('gen_help.py').read())
+  df_help = pd.read_csv('help.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_help = df_help[df_help['SENTENCE']!='']
+  df_help['INTENT'] = config.INTENT_HELP
+
+  exec(open('gen_yes.py').read())
   df_yes = pd.read_csv('yes.txt', header=None, sep='\t', names=['SENTENCE'])
   df_yes = df_yes[df_yes['SENTENCE']!='']
   df_yes['INTENT'] = config.INTENT_YES
-  #df_yes['SENTENCE'] = df_yes['SENTENCE'].map(wordbreak)
 
-  exec(open('../corpora/intent/gen_no.py').read())
+  exec(open('gen_no.py').read())
   df_no = pd.read_csv('no.txt', header=None, sep='\t', names=['SENTENCE'])
   df_no = df_no[df_no['SENTENCE']!='']
   df_no['INTENT'] = config.INTENT_NO
-  #df_no['SENTENCE'] = df_no['SENTENCE'].map(wordbreak)
 
-  exec(open('../corpora/intent/gen_tel.py').read())
+  exec(open('gen_cancel.py').read())
+  df_cancel = pd.read_csv('cancel.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_cancel = df_cancel[df_cancel['SENTENCE']!='']
+  df_cancel['INTENT'] = config.INTENT_CANCEL
+
+  exec(open('gen_retry.py').read())
+  df_retry = pd.read_csv('retry.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_retry = df_retry[df_retry['SENTENCE']!='']
+  df_retry['INTENT'] = config.INTENT_RETRY
+
+  exec(open('gen_tel.py').read())
   df_tel = pd.read_csv('tel.txt', header=None, sep='\t', names=['SENTENCE'])
   df_tel = df_tel[df_tel['SENTENCE']!='']
   df_tel['INTENT'] = config.INTENT_TEL
-  #df_tel['SENTENCE'] = df_tel['SENTENCE'].map(wordbreak)
 
-  exec(open('../corpora/intent/gen_lsm.py').read())
-  df_sendm = pd.read_csv('lsm.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_sendm = df_sendm[df_sendm['SENTENCE']!='']
-  df_sendm['INTENT'] = config.INTENT_SENDM
-  #df_sendm['SENTENCE'] = df_tel['SENTENCE'].map(wordbreak)
+  exec(open('gen_send_line_message.py').read())
+  df_send_line_message = pd.read_csv('send_line_message.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_send_line_message = df_send_line_message[df_send_line_message['SENTENCE']!='']
+  df_send_line_message['INTENT'] = config.INTENT_SEND_LINE_MESSAGE
 
+  exec(open('gen_send_short_message.py').read())
+  df_send_short_message = pd.read_csv('send_short_message.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_send_short_message = df_send_short_message[df_send_short_message['SENTENCE']!='']
+  df_send_short_message['INTENT'] = config.INTENT_SEND_SHORT_MESSAGE
 
-  df = pd.concat([df_others,df_yes,df_no,df_tel,df_sendm])
+  os.chdir(CUR_DIR)
+
+  df = pd.concat([df_others,df_help,df_yes,df_no,df_cancel,df_retry,df_tel,df_send_line_message,df_send_short_message])
   print(f"df:{df.shape}")
   labels = df['INTENT'].reset_index()
   labels = labels['INTENT']

@@ -34,7 +34,7 @@ def strip_spacemark(inputtokenlist):
 #　Create tokens (word broken texts)
 #
 sp = spm.SentencePieceProcessor()
-sp.Load("./sentencepiece.model")
+sp.Load("../tokenizer/sentencepiece.model")
 for src in glob.glob(DATA_FOLDER + "/texts/*"):
     # 3. ファイルをひとつずつ処理していく。
     # src = "articles/AA/wiki_00"
@@ -42,7 +42,7 @@ for src in glob.glob(DATA_FOLDER + "/texts/*"):
     with codecs.open(src, 'r', 'utf-8') as f:
         sentences = []
         numFile = len(glob.glob(DATA_FOLDER + "/wordbreaks/*"))
-        dst = DATA_FOLDER + f'/contents/wb{numFile+1}'
+        dst = DATA_FOLDER + f'/wordbreaks/wb{numFile+1}'
         lines = f.read().splitlines()
         for line in lines:
             if len(line)>0:

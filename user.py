@@ -32,6 +32,7 @@ from gensim.models import KeyedVectors
 import torch
 from intent_classifier import train
 from intent_classifier import create_training_data
+import urllib.parse
 
 DEBUG = True
 
@@ -52,10 +53,10 @@ line_parser = None
 app = None
 user = None
 
-tagger = None
-tokenizer = None
-wordvectors = None
-intent_classifier = None
+#tagger = None
+#tokenizer = None
+#wordvectors = None
+#intent_classifier = None
 
 
 class Person():
@@ -189,6 +190,7 @@ class ConversationModel():
                     #await asyncio.sleep(10000)
                     jsonText = '{' + f'"action":"finish"' + '}'
                     if not self.user.ws.closed: await self.user.ws.send_str(jsonText)
+                    self.user.pipe.send('finish$')
                     return
                 self.user.dialog_history.append(scene)
             except Exception as e:
@@ -234,11 +236,6 @@ def sendToLine(lineid, message):
         line_bot_api.push_message(config.LINE_ADMIN2_USERID, TextSendMessage(text=message))
         line_bot_api.push_message(config.LINE_ADMIN3_USERID, TextSendMessage(text=message))
         line_bot_api.push_message(config.LINE_ADMIN4_USERID, TextSendMessage(text=message))
-
-
-
-
-
 
 async def recvJson(ws):
 
@@ -292,6 +289,7 @@ class Scene():
         self.counter = 0
 
     def getMorphs(self, jsonDict):
+        print('getMorphs > ...')
         v = jsonDict['recognized']
         #parsed = self.tagger.parse(v)
         self.user.pipe.send('tag$' + v)
@@ -389,7 +387,7 @@ class Initial(Scene):
         TEXT = 'ご要件は？'
 
         if self.user.invoker == 'rakudana_app':
-            DISPLAY = 'できること：電話、LINEでメッセージ送信。'
+            DISPLAY = 'できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
             jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show": "{DISPLAY}"' + '}'
 
         elif self.user.org == 'genkikai':
@@ -412,10 +410,19 @@ class Initial(Scene):
             return None
 
         if self.user.invoker == 'rakudana_app':
+            if intent == config.INTENT_HELP:
+                await self.feedback("私が何ができるかということですね？", 0)
+                return await self.actHELP()
             if intent == config.INTENT_TEL:
                 await self.feedback("電話ですね", 0)
-                #return MakeACall(self.user)
-                return await self.actMakeACall()
+                return await self.actMakeCall()
+            elif intent == config.INTENT_SEND_SHORT_MESSAGE:
+                await self.feedback("ショートメッセージ送信ですね", 0)
+                return SendShortMessage_Input(self.user)
+            elif intent == config.INTENT_SEND_LINE_MESSAGE:
+                await self.feedback("LINEメッセージ送信ですね", 0)
+                return SendLineMessage_Input(self.user)
+
 
         elif self.user.org == 'genkikai':
             if self.user.role == 'admin':
@@ -462,9 +469,19 @@ class Initial(Scene):
                     await asyncio.sleep(1)
                     return self
 
-    async def actMakeACall(self):
-        print('actMakeACall')
-        URL = 'apps://rakudana.com/client_app/make_a_call'
+    async def actHELP(self):
+        print('actHELP')
+        TEXT = 'ご要件は？'
+        SPEECH = 'やりたいことを自由にお話ください。現在は、電話をかけること、ショートメッセージをおくること、LINEでメッセージを送ることを、お手伝いできます。'
+        DISPLAY = 'できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
+        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show": "{DISPLAY}"' + '}'
+        print(jsonText)
+        await self.sendStr(jsonText)
+        return self
+
+    async def actMakeCall(self):
+        print('actMakeCall')
+        URL = 'apps://rakudana.com/client_app/make_call'
         jsonText = '{' + f'"action":"invoke_app","url":"{URL}"' + '}'
         print(jsonText)
         await self.sendStr(jsonText)
@@ -609,19 +626,113 @@ class Secondary(Scene):
             return self
 
 
-class MakeACall(Scene):
+class SendShortMessage_Input(Scene):
 
     async def prompt(self):
-        print('MakeACall.prompt')
+        print('SendShortMessage_Input.prompt')
+        SPEECH = '送信するメッセージをお話下さい。'
+        TEXT = 'メッセージ？'
+        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
+        await self.sendStr(jsonText)
         return
 
     async def interpret(self):
-        print('MakeACall.interpret')
-        URL = 'https://rakudana.com/app/make_a_call'
-        jsonText = '{' + f'"action":"invoke_app","url":"{URL}"' + '}'
-        print(jsonText)
+        print('SendShortMessage_Input.interpret')
+        sts, jsonDict, morphs, selection, intent = await self.decode_response()
+        if sts!=SUCCESS:
+            await self.feedback("終了します", 1)
+            return None
+        if len(morphs)>0:
+            print(f"SendShortMessage_Input.interpret > {jsonDict['recognized']}")
+            return SendShortMessage_Confirm(self.user, self, jsonDict['recognized'])
+        else:
+            return self
+
+class SendShortMessage_Confirm(Scene):
+
+    def __init__(self, user, parent, msg):
+        super().__init__(user)
+        self.user = user
+        self.msg = msg
+        self.parent = parent
+
+    async def prompt(self):
+        print('SendShortMessage_Confirm.prompt')
+        SPEECH = 'このメッセージでよろしいですか？'
+        TEXT = 'OK？'
+        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show":"{self.msg}","suggestions":["はい","やり直す","キャンセル"]' + '}'
         await self.sendStr(jsonText)
-        return None
+        return
+
+    async def interpret(self):
+        print('SendShortMessage.interpret')
+        sts, jsonDict, morphs, selection, intent = await self.decode_response()
+        if sts!=SUCCESS or intent == config.INTENT_CANCEL or selection == '3':
+            await self.feedback("終了します", 1)
+            return None
+        elif intent == config.INTENT_RETRY or selection == '2':
+            return self.parent
+        elif intent == config.INTENT_YES or selection == '1':
+            msg = urllib.parse.quote(self.msg)
+            URL = f'apps://rakudana.com/client_app/send_short_message?text={msg}'
+            jsonText = '{' + f'"action":"invoke_app","url":"{URL}"' + '}'
+            print(jsonText)
+            await self.sendStr(jsonText)
+            return None
+
+
+class SendLineMessage_Input(Scene):
+
+    async def prompt(self):
+        print('SendLineMessage_Input.prompt')
+        SPEECH = '送信するメッセージをお話下さい。'
+        TEXT = 'メッセージ？'
+        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
+        await self.sendStr(jsonText)
+        return
+
+    async def interpret(self):
+        print('SendLineMessage_Input.interpret')
+        sts, jsonDict, morphs, selection, intent = await self.decode_response()
+        if sts!=SUCCESS:
+            await self.feedback("終了します", 1)
+            return None
+        if len(morphs)>0:
+            return SendLineMessage_Confirm(self.user, self, jsonDict['recognized'])
+        else:
+            return self
+
+class SendLineMessage_Confirm(Scene):
+
+    def __init__(self, user, parent, msg):
+        super().__init__(user)
+        self.user = user
+        self.msg = msg
+        self.parent = parent
+
+    async def prompt(self):
+        print('SendLineMessage_Confirm.prompt')
+        SPEECH = 'このメッセージでよろしいですか？'
+        TEXT = 'OK？'
+        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show":"{self.msg}","suggestions":["はい","やり直す","キャンセル"]' + '}'
+        await self.sendStr(jsonText)
+        return
+
+    async def interpret(self):
+        print('SendLineMessage.interpret')
+        sts, jsonDict, morphs, selection, intent = await self.decode_response()
+        if sts!=SUCCESS or intent == config.INTENT_CANCEL or selection == '3':
+            await self.feedback("終了します", 1)
+            return None
+        elif intent == config.INTENT_RETRY or selection == '2':
+            return self.parent
+        elif intent == config.INTENT_YES or selection == '1':
+            msg = urllib.parse.quote(self.msg)
+            URL = f'https://line.me/R/share?text={msg}'
+            jsonText = '{' + f'"action":"invoke_app","url":"{URL}"' + '}'
+            print(jsonText)
+            await self.sendStr(jsonText)
+            return None
 
 
 pdNames = pd.DataFrame(data=names.names, columns=["id","sei","seiyomi","mei","meiyomi","lineid"])

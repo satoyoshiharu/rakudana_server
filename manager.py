@@ -40,19 +40,24 @@ def init_LM():
     global wordvectors
     global intent_classifier
 
+    print(f'init_LM > ...')
+
     tagger = MeCab.Tagger(r"-u ./user.dic")
     print(f'tagger type: {type(tagger)}')
     tagger.parse('私')  # preload dictionary
 
     tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load("./corpora/sentencepiece.model")
+    tokenizer.Load("./tokenizer/sentencepiece.model")
+    print(f'tokenizer loaded: {type(tokenizer)}')
 
     wordvectors = KeyedVectors.load('./intent_classifier/wv.model')
+    print(f'word vector loaded: {type(wordvectors)}')
 
     szWV = 100
-    numINTENT = 5
+    numINTENT = config.INTENT_MAX + 1
     intent_classifier = train.Net(szWV, numINTENT)  # .to(device)
     intent_classifier.load_state_dict(torch.load('./intent_classifier/intent_classifier.model'))
+    print(f'intent classifier loaded: {type(intent_classifier)}')
 
 
 def lm(conn):
@@ -62,8 +67,10 @@ def lm(conn):
     global wordvectors
     global intent_classifier
 
+    print('lm thread started')
     while True:
         req = conn.recv()
+        print(f'lm < {req}')
         if req == 'finish$':
             break
         elif req[:4] == 'tag$':
@@ -79,6 +86,7 @@ def lm(conn):
                 intent = torch.argmax(intent_classifier(torch.unsqueeze(input, 0))).item()
             print(f'detect_intent> {config.intents[intent]}')
             conn.send(str(intent))
+    print('lm thread ended')
 
 def collectGarbage():
     global connectedUsers
@@ -86,7 +94,8 @@ def collectGarbage():
         time.sleep(config.GC_INTERVAL)
         for r in connectedUsers:
             # kill idle or zombie process
-            if r[1].poll() is None and time.time() - r[2] > config.PROCESS_TIMEOUT:
+            #if r[1].poll() is None and time.time() - r[2] > config.PROCESS_TIMEOUT:
+            if r[1].is_alive() and time.time() - r[2] > config.PROCESS_TIMEOUT:
                 r[1].kill();
                 #res = subprocess.check_call(shlex.split(f'kill -9 {pid}'))
                 print(f'manager.collectGarbage > killed user process {r[1].pid}')
@@ -188,10 +197,12 @@ async def http_handler(request):
             # userProc = subprocess.Popen(shlex.split(f'python3 ./user.py {userPort} {org} {role} {invoker}'))
             # connectedUsers.append((userPort, userProc, start))
             # mp.set_start_method('spawn')
+            print('kick user process')
             parentConn, childConn = mp.Pipe()
             userProc = mp.Process(target=user.main, args=(userPort, org, role, invoker, childConn))
             userProc.start()
 
+            print('kick lm thread')
             lmThread = threading.Thread(target=lm, args=[parentConn], daemon=True)  # kill thread when main ends
             lmThread.start()
 

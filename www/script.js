@@ -528,7 +528,8 @@ async function leave_action(json) {
     // On Safari, location.href doesn't work
     // http://wawawa12345.hatenablog.com/entry/2019/03/11/224034
 
-    let ctn = document.getElementById('container');
+    //let ctn = document.getElementById('container');
+    let ctn = clear('container');
     //let mode = clear('mode_cell');
     //let ctn = clear('container');
     ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr;"

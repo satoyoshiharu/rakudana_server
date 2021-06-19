@@ -39,3 +39,4 @@ model = Word2Vec(
     workers=4
 )
 model.save('wordvector.model')
+
