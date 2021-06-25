@@ -1,7 +1,7 @@
 /*
 * Declarations of global variables
 */
-let DEBUG = false;
+let DEBUG = true;
 let ws;
 let logWs;
 let imageCounter;
@@ -167,6 +167,12 @@ function grayout_button() {
 */
 async function connect() {
     console.log('connect...');
+    ws = await new WebSocket(WSURL); // ws.readyState==CONNECTING
+};
+
+function connect_sync() {
+    console.log('connect_sync...');
+    ws = null;
     ws = new WebSocket(WSURL); // ws.readyState==CONNECTING
 };
 
@@ -430,6 +436,7 @@ async function start_recognition () {
 function OnStartButton() {
     console.log('OnStartButton > ...');
     if (!button_active) return;
+
     if (!'SpeechSynthesisUtterance' in window) {
         //alert('Speech synthesis(音声合成) APIには未対応です.');
         capability_ss = 0;
@@ -446,7 +453,7 @@ function OnStartButton() {
     console.log(capability_sr);
 
     document.getElementById('start_button').style.backgroundColor="gray";
-    disable_button();
+    //disable_button();
     //force_redraw(document.getElementById('body'));
     main();
     //ws.close();
@@ -569,8 +576,9 @@ async function leave_action(json) {
 async function main() {
 
     console.log('main...')
-    let connect_trial = 0;
-    await connect();
+
+    //await connect();
+    connect_sync();
 
     serializer = new XMLSerializer();
     if (capability_sr==1) await init_sr();
@@ -579,6 +587,8 @@ async function main() {
     ws.onopen = async (e) => {
         console.log('web socket connected');
         await sendCapability();
+        document.getElementById('start_button').style.backgroundColor="gray";
+        disable_button();
     };
     ws.onclose = async (e) => {
         console.log('web socket closed');
@@ -587,17 +597,15 @@ async function main() {
     }
     ws.onerror = async (e) => {
         console.log('main> web socket onerror...');
-        if (connect_trial<3) {
-            connect_trial += 1;
-            await connect();
-           } else {
-            m = 'サーバー接続エラーです、担当者にご連絡下さい';
-            console.error(m, e);
-            let ctn = clear('container');
-            let [display_box, display_cell] = newBox("display");
-            display_cell.innerHTML = '<p>' + m + '</p>';
-            ctn.appendChild(display_box);
-        }
+        /*
+        m = 'お待ち下さい';
+        console.error(m, e);
+        let ctn = clear('container');
+        let [display_box, display_cell] = newBox("display");
+        display_cell.innerHTML = '<p>' + m + '</p>';
+        ctn.appendChild(display_box);
+        */
+        setTimeout(OnStartButton(), 1000);
     }
     ws.onmessage = async (e) => {
         console.log('main > ws.onmessage...')

@@ -42,7 +42,7 @@ def init_LM():
 
     print(f'init_LM > ...')
 
-    tagger = MeCab.Tagger(r"-u ./user.dic")
+    tagger = MeCab.Tagger(r"-u ./user.dic -d /var/lib/mecab/dic/ipadic-utf8/")
     print(f'tagger type: {type(tagger)}')
     tagger.parse('私')  # preload dictionary
 

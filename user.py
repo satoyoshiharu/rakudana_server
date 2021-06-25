@@ -387,7 +387,8 @@ class Initial(Scene):
         TEXT = 'ご要件は？'
 
         if self.user.invoker == 'rakudana_app':
-            DISPLAY = 'できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
+            DISPLAY = 'シニアがスマホを使うときに苦手なことをお手伝いします。' +\
+                      '<br>できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
             jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show": "{DISPLAY}"' + '}'
 
         elif self.user.org == 'genkikai':
@@ -472,7 +473,8 @@ class Initial(Scene):
     async def actHELP(self):
         print('actHELP')
         TEXT = 'ご要件は？'
-        SPEECH = 'やりたいことを自由にお話ください。現在は、電話をかけること、ショートメッセージをおくること、LINEでメッセージを送ることを、お手伝いできます。'
+        SPEECH = 'シニアがスマホを使うときに、苦手なことをお手伝いします。やりたいことをお話ください。' +\
+                 '現在は、電話をかけること、ショートメッセージをおくること、LINEでメッセージを送ることを、お手伝いできます。'
         DISPLAY = 'できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
         jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show": "{DISPLAY}"' + '}'
         print(jsonText)
@@ -756,7 +758,7 @@ class AskName(Scene):
         else:
             SPEECH = 'お名前をください。'
         TEXT = 'お名前（姓名）は？'
-        if (self.user.org=='genkikai' and self.user.role=='member' and not self.user.capability_sr):
+        if (self.user.org=='genkikai' and self.user.role=='member' and self.user.device=='iPhone'):#not self.user.capability_sr):
             jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["小川","小木曾","今村","佐藤佳","島田","所","中越","中島","久留","馬渕寿","渡辺美"]' + '}'
         else:
             jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
