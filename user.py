@@ -2,7 +2,7 @@
  UI, Communication controller
  Process per user
 """
-import aiohttp.web
+from aiohttp import web
 import concurrent.futures
 import time
 from multiprocessing import Process, Pipe, Queue
@@ -74,6 +74,7 @@ class User():
         global tagger
         self.wsPort = int(port)
         self.ws = None
+        self.app_data = False
         self.monitorInfo = None
         self.org = org
         self.role = role
@@ -132,15 +133,25 @@ class Visit():
         self.date = None
         self.memberList = []
 
-#flag_started = False
-
+#?????????????????????????
+async def app_handler(request):
+    print('app_handler...')
+    ws = web.WebSocketResponse(timeout=60, max_msg_size=256)
+    await ws.prepare(request)
+    print('app_handler > Websocket connection ready')
+    r = await ws.receive()
+    print(f'app_handler > received: {r}')
+    await ws.close()
+    print('app_handler > ended')
+    return
+#???????????????????????????
 
 async def browser_handler(request):
     #global flag_started
 
     print('browser_handler > Websocket connection starting')
     #flag_started = True
-    user.ws = aiohttp.web.WebSocketResponse(timeout=60, max_msg_size=256)
+    user.ws = web.WebSocketResponse(timeout=60, max_msg_size=256)
     await user.ws.prepare(request)
     print('browser_handler > Websocket connection ready')
 
@@ -148,7 +159,7 @@ async def browser_handler(request):
     #jsonDict = json.loads(r.data)
     sts, jsonDict = await recvJson(user.ws)
     if sts==SUCCESS:
-        print(f'received: {jsonDict}')
+        print(f'browser_handler > received: {jsonDict}')
 
         if 'device' in jsonDict: user.device = jsonDict['device']
         if 'capability_ss' in jsonDict and jsonDict['capability_ss']=='1': user.capability_ss = True
@@ -160,7 +171,7 @@ async def browser_handler(request):
         conversation = ConversationModel(user)
         await conversation.loop()
 
-    print('user.browser_handler > Websocket connection closed')
+    print('browser_handler > Websocket connection closed')
     user.ws.force_close()
     #print(user.dialog_history)
     sys.exit(0)
@@ -402,6 +413,7 @@ class Initial(Scene):
 
     async def interpret(self):
         print('Initial.interpret')
+
         if self.counter > 5:
             await self.feedback("終了します",1)
             return None
@@ -1677,7 +1689,7 @@ def main(userPort, org, role, invoker, childConn):
     signal.signal(signal.SIGINT, termination_handler)
     signal.signal(signal.SIGTERM, termination_handler)
     user = User(userPort, org, role, invoker, childConn)
-    print(f'user port:{user.wsPort},org:{user.org},role:{user.role},invoker:{user.invoker}')
+    print(f'user main > user port:{user.wsPort},org:{user.org},role:{user.role},invoker:{user.invoker}')
 
     line_bot_api = LineBotApi(config.LINE_CHANNEL_ACCESS_TOKEN)
     line_parser = WebhookParser(config.LINE_CHANNEL_SECRET)
@@ -1704,16 +1716,21 @@ def main(userPort, org, role, invoker, childConn):
 
         print("user.main > starts web socket handler for client browser")
 
-        app = aiohttp.web.Application(logger=logger)
-        app.router.add_route('GET', '/ws', browser_handler)
+        loop = asyncio.get_event_loop()
+        app = web.Application(logger=logger, loop=loop)
+        #?????????????
+        app.router.add_route('GET', '/ws/b', browser_handler)
+        app.router.add_route('GET', '/ws/a', app_handler)
+        #app.router.add_route('POST', '/post', post_handler)
+        #???????????????
         app.on_shutdown.append(on_shutdown)
 
         # threading.Thread(target=on_startup, args=([manager])).start()
 
         if config.PROTOCOL == "http":
-            aiohttp.web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort)
+            web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort)
         else:
-            aiohttp.web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort, ssl_context=ctx)
+            web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort, ssl_context=ctx)
 
     except Exception as e:
         print('user.main > exception {}'.format(e))
@@ -1721,7 +1738,7 @@ def main(userPort, org, role, invoker, childConn):
 
     finally:
         print('user.main > finally')
-        childConn.send('finish$')
+        #user.pipe.send('finish$')
         history = [x.__class__.__name__ for x in user.dialog_history]
         print(f'>>>DIALOG HISTORY: {history}')
         # time.sleep(2) # for shutdown cor to execute

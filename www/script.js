@@ -1,7 +1,7 @@
 /*
 * Declarations of global variables
 */
-let DEBUG = true;
+let DEBUG = false;
 let ws;
 let logWs;
 let imageCounter;
@@ -668,7 +668,7 @@ async function main() {
                         addAction(fragment, 1, '4/5', '1/2', true);
                         break;
                     case 2:
-                        console.log('2 suggestionw');
+                        console.log('2 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
                         setUpper('1/3');
                         addAction(fragment, 1, '4/5', '1/2', true);

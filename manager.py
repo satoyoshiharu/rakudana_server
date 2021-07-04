@@ -117,6 +117,12 @@ def decide_userProperPorts():
         else:
             return i
 
+def usedPort(port):
+    if port in [p[0] for p in connectedUsers]:
+        return True
+    else:
+        return False
+
 def generate_startPage(userPort):
     page = ''
     with open('./www/start.html', 'r') as f:
@@ -133,7 +139,7 @@ def generate_startPage(userPort):
                 page += line + "\n"
                 page += '<script>\n'
                 #page += f"const WSURL = '{config.WS_PROTOCOL}://{config.HOST}:{userPort}/ws';\n"
-                page += f"const WSURL = '{config.WS_PROTOCOL}://{config.HOST_EXTERNAL_IP}:{userPort}/ws';\n"
+                page += f"const WSURL = '{config.WS_PROTOCOL}://{config.HOST_EXTERNAL_IP}:{userPort}/ws/b';\n"
                 page += f"const HOST = '{config.HOST_EXTERNAL_IP}';\n"
                 page += f"const HOST_PORT = '{config.HOST_PORT}';\n"
                 #page += f"const MIKE_ON_ICON = '{config.PROTOCOL}://{config.HOST}:{config.HOST_PORT}/www/image/mike_on.png';\n"
@@ -191,13 +197,20 @@ async def http_handler(request):
                     role = request.rel_url.query['role']
                 else:
                     role = 'member'
-            userPort = decide_userProperPorts()
+            if 'port' in request.rel_url.query:
+                p = int(request.rel_url.query['port'])
+                if usedPort(p):
+                    return web.Response(content_type='text/html', text='failed')
+                else:
+                    userPort = p
+            else:
+                userPort = decide_userProperPorts()
             starttime = time.time()
 
             # userProc = subprocess.Popen(shlex.split(f'python3 ./user.py {userPort} {org} {role} {invoker}'))
             # connectedUsers.append((userPort, userProc, start))
             # mp.set_start_method('spawn')
-            print('kick user process')
+            print(f'kick user process with port {userPort}')
             parentConn, childConn = mp.Pipe()
             userProc = mp.Process(target=user.main, args=(userPort, org, role, invoker, childConn))
             userProc.start()
@@ -206,10 +219,9 @@ async def http_handler(request):
             lmThread = threading.Thread(target=lm, args=[parentConn], daemon=True)  # kill thread when main ends
             lmThread.start()
 
-            stopThreadFlag = False
-            connectedUsers.append((userPort, userProc, starttime, parentConn, lmThread, stopThreadFlag))
+            connectedUsers.append((userPort, userProc, starttime, parentConn, lmThread))
 
-            print(f'manager.websocket_handler > created a user proc {userProc.pid}')
+            print(f'manager.websocket_handler > created a user proc {userProc.pid} port {userPort}')
 
             page = generate_startPage(userPort);
             print(f"managee.http_handler -> client > index page")
