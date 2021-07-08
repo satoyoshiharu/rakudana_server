@@ -133,7 +133,6 @@ class Visit():
         self.date = None
         self.memberList = []
 
-#?????????????????????????
 async def app_handler(request):
     print('app_handler...')
     ws = web.WebSocketResponse(timeout=60, max_msg_size=256)
@@ -144,7 +143,6 @@ async def app_handler(request):
     await ws.close()
     print('app_handler > ended')
     return
-#???????????????????????????
 
 async def browser_handler(request):
     #global flag_started
@@ -1440,7 +1438,7 @@ class Reservation2Record(Scene):
 
     async def interpret(self):
         print('Reservation2Record.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
+        sts, jsonDict, morphs, selection = await self.decode_response()
         if sts != SUCCESS:
             await self.feedback("終了します", 1)
             return None
@@ -1452,13 +1450,42 @@ class Reservation2Record(Scene):
             if dt.error == ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
                 return None
-        url = 'https://npogenkikai.net/reservation2record.php?date=' + f'{date.year}/{date.month}/{date.day}'
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req) as resp:
-            respond = resp.read() # just ignore returned text
-        #await sendGetRequest(url)
-        await self.feedback("コピーしました", 0)
-        return self.parent
+
+        return ConfirmReservation2Record(self.user, date)
+
+class ConfirmReservation2Record(Scene):
+
+    def __init__(self, user, date):
+        super().__init__(user)
+        self.user = user
+        self.date = date
+
+    async def prompt(self):
+        print('ConfirmReservation2Record.prompt')
+        SPEECH = f'{self.date.year}年{self.date.month}月{self.date.day}日の分をコピーしますか？'
+        TEXT = f'{self.date.year}/{self.date.month}/{self.date.day}のコピー？'
+        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["コピー","キャンセル"]' + '}'
+        await self.sendStr(jsonText)
+        return
+
+    async def interpret(self):
+        print('ConfirmReservation2Record.interpret')
+        sts, jsonDict, morphs, selection = await self.decode_response()
+        if sts != SUCCESS:
+            await self.feedback("終了します", 1)
+            return None
+
+        if any(['コピー' in m['surface'] for m in morphs]) or selection == '1':
+            await self.feedback("コピーします",0)
+            url = 'https://npogenkikai.net/reservation2record.php?date=' + f'{self.date.year}/{self.date.month}/{self.date.day}'
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req) as resp:
+                respond = resp.read()  # just ignore returned text
+            # await sendGetRequest(url)
+            await self.feedback("コピーしました", 0)
+        elif any(['キャンセル' in m['surface'] for m in morphs]) or selection == '2':
+            await self.feedback("キャンセルします",0)
+        return None
 
 class UpdateRecord(Scene):
 

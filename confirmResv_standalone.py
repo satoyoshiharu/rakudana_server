@@ -41,6 +41,17 @@ if __name__ == '__main__':
     line_parser = WebhookParser(config.LINE_CHANNEL_SECRET)
 
     today = datetime.today()
+    #
+    # copy today's reservation data to record table
+    #
+    url = 'https://npogenkikai.net/reservation2record.php?date=' + f'{today.year}/{today.month}/{today.day}'
+    req = urllib.request.Request(url)
+    with urllib.request.urlopen(req) as resp:
+        respond = resp.read()  # just ignore returned text
+    #
+    # send confirmation of the same day of next week
+    #
+
     cfm = today + relativedelta(days=7)
     date = f'{cfm.year}/{cfm.month}/{cfm.day}'
     print(f'{cfm}')

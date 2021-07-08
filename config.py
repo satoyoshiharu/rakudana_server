@@ -1,5 +1,5 @@
-PROTOCOL = 'http'#'https'
-WS_PROTOCOL = 'ws'#'wss'
+PROTOCOL = 'https'
+WS_PROTOCOL = 'wss'
 
 CLOUD_INSTANCE = False
 
