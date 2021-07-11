@@ -91,7 +91,7 @@ def line():
 		        "source":{"userId":"U73303fce43ff02051ca356e36998145a","type":"user"},
 		        "timestamp":1612617311575,
 		        "mode":"active",
-		        "message":{"type":"image","id":"13511902700118","contentProvider":{"type":"line"}}
+		        "message":{"type":"image","userid":"13511902700118","contentProvider":{"type":"line"}}
 	        }
         ],
         "destination":"U9958e0c81ba7f5bbd48e64c2a1202469"

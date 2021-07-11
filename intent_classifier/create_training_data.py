@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import sentencepiece as spm
 from gensim.models import Word2Vec, KeyedVectors
+import com
 
 def strip_spacemark(inputtokenlist):
   # print(inputtokenlist)
@@ -50,7 +51,7 @@ if __name__ == '__main__':
 
   df_others = pd.read_csv('/media/sf_E_DRIVE/研究社/ej/kej.txt', header=None, sep='\t', names=['SENTENCE'])
   df_others = df_others[df_others['SENTENCE']!='']
-  df_others['INTENT'] = config.INTENT_OTHERS
+  df_others['INTENT'] = com.INTENT_OTHERS
 
   CORPORA_DIR = '../corpora/intent/'
   CUR_DIR = os.getcwd()
@@ -59,42 +60,42 @@ if __name__ == '__main__':
   exec(open('gen_help.py').read())
   df_help = pd.read_csv('help.txt', header=None, sep='\t', names=['SENTENCE'])
   df_help = df_help[df_help['SENTENCE']!='']
-  df_help['INTENT'] = config.INTENT_HELP
+  df_help['INTENT'] = com.INTENT_HELP
 
   exec(open('gen_yes.py').read())
   df_yes = pd.read_csv('yes.txt', header=None, sep='\t', names=['SENTENCE'])
   df_yes = df_yes[df_yes['SENTENCE']!='']
-  df_yes['INTENT'] = config.INTENT_YES
+  df_yes['INTENT'] = com.INTENT_YES
 
   exec(open('gen_no.py').read())
   df_no = pd.read_csv('no.txt', header=None, sep='\t', names=['SENTENCE'])
   df_no = df_no[df_no['SENTENCE']!='']
-  df_no['INTENT'] = config.INTENT_NO
+  df_no['INTENT'] = com.INTENT_NO
 
   exec(open('gen_cancel.py').read())
   df_cancel = pd.read_csv('cancel.txt', header=None, sep='\t', names=['SENTENCE'])
   df_cancel = df_cancel[df_cancel['SENTENCE']!='']
-  df_cancel['INTENT'] = config.INTENT_CANCEL
+  df_cancel['INTENT'] = com.INTENT_CANCEL
 
   exec(open('gen_retry.py').read())
   df_retry = pd.read_csv('retry.txt', header=None, sep='\t', names=['SENTENCE'])
   df_retry = df_retry[df_retry['SENTENCE']!='']
-  df_retry['INTENT'] = config.INTENT_RETRY
+  df_retry['INTENT'] = com.INTENT_RETRY
 
   exec(open('gen_tel.py').read())
   df_tel = pd.read_csv('tel.txt', header=None, sep='\t', names=['SENTENCE'])
   df_tel = df_tel[df_tel['SENTENCE']!='']
-  df_tel['INTENT'] = config.INTENT_TEL
+  df_tel['INTENT'] = com.INTENT_TEL
 
   exec(open('gen_send_line_message.py').read())
   df_send_line_message = pd.read_csv('send_line_message.txt', header=None, sep='\t', names=['SENTENCE'])
   df_send_line_message = df_send_line_message[df_send_line_message['SENTENCE']!='']
-  df_send_line_message['INTENT'] = config.INTENT_SEND_LINE_MESSAGE
+  df_send_line_message['INTENT'] = com.INTENT_SEND_LINE_MESSAGE
 
   exec(open('gen_send_short_message.py').read())
   df_send_short_message = pd.read_csv('send_short_message.txt', header=None, sep='\t', names=['SENTENCE'])
   df_send_short_message = df_send_short_message[df_send_short_message['SENTENCE']!='']
-  df_send_short_message['INTENT'] = config.INTENT_SEND_SHORT_MESSAGE
+  df_send_short_message['INTENT'] = com.INTENT_SEND_SHORT_MESSAGE
 
   os.chdir(CUR_DIR)
 

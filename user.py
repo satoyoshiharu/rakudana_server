@@ -3,89 +3,40 @@
  Process per user
 """
 from aiohttp import web
-import concurrent.futures
-import time
-from multiprocessing import Process, Pipe, Queue
 import traceback
 import signal
 import sys
-import os.path
 import config
 import json
 import ssl
-import MeCab
 import urllib.request
 import logging
-import re
 from linebot import LineBotApi, WebhookParser
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage, FollowEvent, UnfollowEvent, SourceUser
-from datetime import datetime, date, timedelta
+from linebot.models import TextSendMessage
+from datetime import datetime
 import asyncio
-import pandas as pd
 import threading
 import re
 import names
-from ner import NER
-import sentencepiece as spm
-from gensim.models import KeyedVectors
-import torch
-from intent_classifier import train
-from intent_classifier import create_training_data
+from ner import NER, Person, Day, Reservation, Visit
 import urllib.parse
-
-DEBUG = True
-
-INF_OK = 0
-INF_RESET = 1
-INF_NOT_HEAR_WELL = 2
-INF_NO_MATCHING_NAME  = 3
-INF_NO_TARGET_WORDS = 4
-INF_MULTIPLE_MATCH = 5
-
-SUCCESS = 0
-ERR_EXCEPTION = 1
-ERR_TIMEOUT = 2
-ERR_TYPEERROR = 3
-
-line_bot_api = None
-line_parser = None
-app = None
-user = None
-
-#tagger = None
-#tokenizer = None
-#wordvectors = None
-#intent_classifier = None
+import com
 
 
-class Person():
-    def __init__(self, sei, seiyomi, mei, meiyomi, id, lineid):
-        self.sei = sei
-        self.seiyomi = seiyomi
-        self.mei = mei
-        self.meiyomi = meiyomi
-        self.id = id
-        self.lineid = lineid
-
-
-class User():
+class User:
+    """
+    user attributes
+    """
     def __init__(self, port, org, role, invoker, pipe):
-        global tagger
         self.wsPort = int(port)
         self.ws = None
         self.app_data = False
-        self.monitorInfo = None
+        #self.monitor_info = None
         self.org = org
         self.role = role
         self.invoker = invoker
         self.pipe = pipe
         self.person = None
-        #self.tagger = MeCab.Tagger("-O dump -r /dev/null -d /usr/share/mecab/dic/ipadic/")
-        #self.tagger = MeCab.Tagger("-O dump")
-        #self.tagger = MeCab.Tagger()
-        #parsed = self.tagger.parse('私') # preload dictionary
-        #self.tagger = tagger
         self.dialog_history = []
         self.device = ''
         self.capability_sr = False
@@ -98,40 +49,13 @@ class User():
 
     def cookie2id(self):
         print(f'cookie2id > {self.cookie}')
-        if self.cookie!='':
-            id = re.findall(r'genkikai_id\=([^,]*)', self.cookie)
-            print(f'cookie2id > {id[0]}')
-            return id[0]
+        if self.cookie != '':
+            userid = re.findall(r'genkikai_id=([^,]*)', self.cookie)
+            print(f'cookie2id > {userid[0]}')
+            return userid[0]
         else:
             return ''
 
-
-class Day():
-    def __init__(self,year,month,day,ampm):
-        today = datetime.today()
-        if year!='':
-            self.year = year
-        else:
-            self.year = today.year
-        if month!='':
-            self.month = month
-        else:
-            self.month = today.month
-        self.day = day
-        self.ampm = ampm
-
-
-class Reservation():
-    def __init__(self):
-        self.date = None
-        self.memberList = []
-        #self.member = Person('','','')
-
-
-class Visit():
-    def __init__(self):
-        self.date = None
-        self.memberList = []
 
 async def app_handler(request):
     print('app_handler...')
@@ -144,46 +68,52 @@ async def app_handler(request):
     print('app_handler > ended')
     return
 
-async def browser_handler(request):
-    #global flag_started
 
+async def browser_handler(request):
+    global user
     print('browser_handler > Websocket connection starting')
-    #flag_started = True
-    user.ws = web.WebSocketResponse(timeout=60, max_msg_size=256)
-    await user.ws.prepare(request)
+    ws = web.WebSocketResponse(timeout=60, max_msg_size=256)
+    user.ws = ws
+    await ws.prepare(request)
     print('browser_handler > Websocket connection ready')
 
-    #r = await user.ws.receive()
-    #jsonDict = json.loads(r.data)
-    sts, jsonDict = await recvJson(user.ws)
-    if sts==SUCCESS:
-        print(f'browser_handler > received: {jsonDict}')
+    # r = await user.ws.receive()
+    # json_dict = json_string.loads(r.data)
+    sts, json_dict = await recv_json(ws)
+    if sts == com.SUCCESS:
+        print(f'browser_handler > received: {json_dict}')
 
-        if 'device' in jsonDict: user.device = jsonDict['device']
-        if 'capability_ss' in jsonDict and jsonDict['capability_ss']=='1': user.capability_ss = True
-        if 'capability_sr' in jsonDict and jsonDict['capability_sr']=='1': user.capability_sr = True
-        if 'screen_width' in jsonDict: user.screen_width = int(jsonDict['screen_width'])
-        if 'screen_height' in jsonDict: user.screen_height = int(jsonDict['screen_height'])
-        if 'cookie' in jsonDict: user.cookie = jsonDict['cookie']
+        if 'device' in json_dict:
+            user.device = json_dict['device']
+        if 'capability_ss' in json_dict and json_dict['capability_ss'] == '1':
+            user.capability_ss = True
+        if 'capability_sr' in json_dict and json_dict['capability_sr'] == '1':
+            user.capability_sr = True
+        if 'screen_width' in json_dict:
+            user.screen_width = int(json_dict['screen_width'])
+        if 'screen_height' in json_dict:
+            user.screen_height = int(json_dict['screen_height'])
+        if 'cookie' in json_dict:
+            user.cookie = json_dict['cookie']
 
         conversation = ConversationModel(user)
         await conversation.loop()
 
     print('browser_handler > Websocket connection closed')
-    user.ws.force_close()
+    ws.force_close()
     #print(user.dialog_history)
     sys.exit(0)
     #return user.ws
 
 
-class ConversationModel():
+class ConversationModel:
 
-    def __init__(self, user):
-        self.user = user
+    def __init__(self, usr):
+        self.user = usr
 
     async def loop(self):
-        json = '{"feedback":"開始します"}'
-        await self.user.ws.send_str(json)
+        json_text = '{"feedback":"開始します"}'
+        await self.user.ws.send_str(json_text)
         await asyncio.sleep(1)
 
         scene = Initial(self.user)
@@ -195,10 +125,11 @@ class ConversationModel():
                 scene = await scene.interpret()
                 print(f'scene: {scene.__class__.__name__}')
                 # (1) explicit termination (2) timeout error (idle >10 minutes)
-                if scene==None:
+                if scene is None:
                     #await asyncio.sleep(10000)
-                    jsonText = '{' + f'"action":"finish"' + '}'
-                    if not self.user.ws.closed: await self.user.ws.send_str(jsonText)
+                    json_text = '{' + f'"action":"finish"' + '}'
+                    if not self.user.ws.closed:
+                        await self.user.ws.send_str(json_text)
                     self.user.pipe.send('finish$')
                     return
                 self.user.dialog_history.append(scene)
@@ -206,38 +137,41 @@ class ConversationModel():
                 # maybe timeout error
                 print(f'ConversationModel.loop > exception: {e}')
                 print(traceback.format_exc())
-                jsonText = '{' + f'"action":"finish"' + '}'
-                if not self.user.ws.closed: await self.user.ws.send_str(jsonText)
-                return # -> finish
+                json_text = '{' + '"action":"finish"' + '}'
+                if not self.user.ws.closed:
+                    await self.user.ws.send_str(json_text)
+                return  # -> finish
 
 
-def sendJson_sync(url,data):
-    print(f'sendJson > {url}, {data}')
-    headers = {'Content-Type': 'application/json'}
+def send_json_sync(url, data):
+    print(f'send_json > {url}, {data}')
+    headers = {'Content-Type': 'application/json_string'}
     req = urllib.request.Request(url, json.dumps(data).encode(), headers)
     with urllib.request.urlopen(req) as res:
         print('respose: ', res)
         json_contents = json.load(res)
-        print('json contents', json_contents)
+        print('json_string contents', json_contents)
 
 
-async def sendJson(url,data):
+async def send_json(url, data):
     print(f'sendJson > {url}, {data}')
-    headers = {'Content-Type': 'application/json'}
+    headers = {'Content-Type': 'application/json_string'}
     req = urllib.request.Request(url, json.dumps(data).encode(), headers)
     with urllib.request.urlopen(req) as res:
         print('respose: ', res)
         #try:
         json_contents = json.load(res)
-        print('json contents', json_contents)
+        print('json_string contents', json_contents)
         return json_contents
         #except Exception as e:
         #    print(traceback.format_exc())
         #    return {}
 
 
-def sendToLine(lineid, message):
-    if lineid != None:
+def send_to_line(lineid, message):
+    global line_bot_api
+    #line_bot_api: LineBotApi
+    if lineid is not None:
         line_bot_api.push_message(lineid, TextSendMessage(text=message))
         print(f'sent to {lineid}: {message}')
     else:
@@ -246,60 +180,61 @@ def sendToLine(lineid, message):
         line_bot_api.push_message(config.LINE_ADMIN3_USERID, TextSendMessage(text=message))
         line_bot_api.push_message(config.LINE_ADMIN4_USERID, TextSendMessage(text=message))
 
-async def recvJson(ws):
 
-    async def receive_json(ws):
+async def recv_json(ws):
+
+    async def receive_json():
         try:
             while True:
                 r = await ws.receive()
-                print(f'recvJson > received (raw): {r.data}')
+                print(f'recv_json > received (raw): {r.data}')
                 if type(r.data) is int:
-                    print(f'recvJson > int returned {r.data}')
-                    return ERR_TYPEERROR, None
-                jsonDict = json.loads(r.data)
+                    print(f'recv_json > int returned {r.data}')
+                    return com.ERR_TYPEERROR, None
+                json_dict = json.loads(r.data)
                 if len(r.data) == 0:
                     continue
-                #print(f'recvJson > received(json): {jsonDict}')
-                if 'status' in jsonDict:
+                # print(f'recvJson > received(json_string): {jsondict}')
+                if 'status' in json_dict:
                     continue
                 else:
                     break
-            return SUCCESS, jsonDict
-        # except json.decoder.JSONDecodeError:
+            return com.SUCCESS, json_dict
+        # except json_string.decoder.JSONDecodeError:
         #     print('JsonDecode Exception in recvJson')
         #     print(traceback.format_exc())
         #     return {} #-> continue
         except TypeError:
-            print('TypeError Exception in recvJson')
+            print('TypeError Exception in recv_json')
             print(traceback.format_exc())
             # ignore
             # await self.recvJson();
-            return ERR_TYPEERROR, None  # -> continue
+            return com.ERR_TYPEERROR, None  # -> continue
         except Exception as e:
-            print(f'Exception in recvJson: {e}')
+            print(f'Exception in recv_json: {e}')
             print(traceback.format_exc())
-            return ERR_EXCEPTION, None
+            return com.ERR_EXCEPTION, None
 
-    print('recvJson')
+    print('recv_json')
     try:
-        sts, jsonDict = await asyncio.wait_for(receive_json(ws), config.RECVJSON_TIMEOUT)
+        sts, jsondict = await asyncio.wait_for(receive_json(), config.RECVJSON_TIMEOUT)
     except asyncio.TimeoutError:
-        sts, jsonDict = ERR_TIMEOUT, {}
-        print(jsonDict)
-    return sts, jsonDict
+        sts, jsondict = com.ERR_TIMEOUT, {}
+        print(jsondict)
+    return sts, jsondict
 
 
-class Scene():
+class Scene:
 
-    def __init__(self, user):
-        self.user = user
+    def __init__(self, usr):
+        self.user = usr
         self.ws = self.user.ws
-        self.error = INF_OK
+        self.error = com.INF_OK
         self.counter = 0
 
-    def getMorphs(self, jsonDict):
-        print('getMorphs > ...')
-        v = jsonDict['recognized']
+    def get_morphs(self, jsondict):
+        print('get_morphs > ...')
+        v = jsondict['recognized']
         #parsed = self.tagger.parse(v)
         self.user.pipe.send('tag$' + v)
         parsed = self.user.pipe.recv()
@@ -307,7 +242,8 @@ class Scene():
         for token in parsed.split('\n'):
             #attr = token.split('\t')
             attr = re.split('[\t,]', token)
-            if DEBUG: print(f'getMorphs > attr: {attr}')
+            if DEBUG:
+                print(f'get_morphs > attr: {attr}')
             # unidic-lite
             # morph = {'surface': attr[0], 'base': attr[4], 'pos': attr[4]}
             # IPA
@@ -323,10 +259,10 @@ class Scene():
         if DEBUG: print(f'morphs{morphs}')
         return morphs
 
-    async def sendStr(self, json):
-        print(f'sendStr > {json}')
+    async def send_str(self, json_string):
+        print(f'send_str > {json_string}')
         try:
-            if not self.ws.closed: await self.ws.send_str(json)
+            if not self.ws.closed: await self.ws.send_str(json_string)
         except Exception as e:
             print('sending > exception {}'.format(e))
             print(traceback.format_exc())
@@ -337,7 +273,7 @@ class Scene():
         await scene.prompt()
         if scene.counter > 5:
             #await self.sendStr('{"feedback":"終了します"}')
-            scene.error = ERR_TIMEOUT
+            scene.error = com.ERR_TIMEOUT
             return None
         scene.counter += 1
         return await scene.interpret()
@@ -358,55 +294,59 @@ class Scene():
 
     async def decode_response(self):
         print('decode_response')
-        sts, jsonDict = await recvJson(self.ws)
-        if sts != SUCCESS:
+        sts, json_dict = await recv_json(self.ws)
+        if sts != com.SUCCESS:
             return sts, None, None, None, None
         morphs = []
         selection = ''
         intent = None
-        if 'recognized' in jsonDict:
-            morphs = self.getMorphs(jsonDict)
+        if 'recognized' in json_dict:
+            morphs = self.get_morphs(json_dict)
 
             if self.user.invoker == 'rakudana_app':
                 # detect entities for following processing
-                self.user.ner.findEntity(morphs)
+                self.user.ner.find_entity(morphs)
                 # detect intention
-                intent = self.detect_intent(jsonDict['recognized'])
+                intent = self.detect_intent(json_dict['recognized'])
 
-        if 'action' in jsonDict and jsonDict['action'] == 'button':
-            selection = jsonDict['selection']
+        if 'action' in json_dict and json_dict['action'] == 'button':
+            selection = json_dict['selection']
             print(f'confirmFinish> button action detected: {selection}')
 
-        return sts, jsonDict, morphs, selection, intent
+        return sts, json_dict, morphs, selection, intent
 
-    async def feedback(self,msg,pause):
-        await self.sendStr('{"feedback":"' + f'{msg}' + '"}')
-        if pause>0: await asyncio.sleep(pause)
+    async def feedback(self, msg, pause):
+        await self.send_str('{"feedback":"' + f'{msg}' + '"}')
+        if pause > 0:
+            await asyncio.sleep(pause)
 
 
 class Initial(Scene):
 
     async def prompt(self):
         print('Initial.prompt')
-        if self.error == INF_NO_TARGET_WORDS:
-            SPEECH = 'ご要件は？'
-            self.error = INF_RESET
+        if self.error == com.INF_NO_TARGET_WORDS:
+            speech = 'ご要件は？'
+            self.error = com.INF_RESET
         else:
-            SPEECH = 'げんきですか、ご要件は？'
-        TEXT = 'ご要件は？'
+            speech = 'げんきですか、ご要件は？'
+        text = 'ご要件は？'
 
+        json_text = ''
         if self.user.invoker == 'rakudana_app':
-            DISPLAY = 'シニアがスマホを使うときに苦手なことをお手伝いします。' +\
+            display = 'シニアがスマホを使うときに苦手なことをお手伝いします。' +\
                       '<br>できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
-            jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show": "{DISPLAY}"' + '}'
+            json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + '}'
 
         elif self.user.org == 'genkikai':
             if self.user.role == 'admin':
-                jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["予約管理","来場記録","終了"]' + '}'
+                json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
+                           '"suggestions":["予約管理","来場記録","終了"]' + '}'
             else:
-                jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["予約確認","お知らせ","ポイント","終了","その他"]' + '}'
+                json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
+                           '"suggestions":["予約確認","お知らせ","ポイント","終了","その他"]' + '}'
 
-        await self.sendStr(jsonText)
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
@@ -415,190 +355,198 @@ class Initial(Scene):
         if self.counter > 5:
             await self.feedback("終了します",1)
             return None
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
 
         if self.user.invoker == 'rakudana_app':
-            if intent == config.INTENT_HELP:
+            if intent == com.INTENT_HELP:
                 await self.feedback("私が何ができるかということですね？", 0)
-                return await self.actHELP()
-            if intent == config.INTENT_TEL:
+                return await self.act_help()
+            if intent == com.INTENT_TEL:
                 await self.feedback("電話ですね", 0)
-                return await self.actMakeCall()
-            elif intent == config.INTENT_SEND_SHORT_MESSAGE:
+                return await self.act_make_call()
+            elif intent == com.INTENT_SEND_SHORT_MESSAGE:
                 await self.feedback("ショートメッセージ送信ですね", 0)
-                return SendShortMessage_Input(self.user)
-            elif intent == config.INTENT_SEND_LINE_MESSAGE:
+                return SendShortMessageInput(self.user)
+            elif intent == com.INTENT_SEND_LINE_MESSAGE:
                 await self.feedback("LINEメッセージ送信ですね", 0)
-                return SendLineMessage_Input(self.user)
-
+                return SendLineMessageInput(self.user)
 
         elif self.user.org == 'genkikai':
             if self.user.role == 'admin':
-                if any(['予約' in m['surface'] for m in morphs]) or selection=='1':
-                    await self.feedback("予約を管理します",0)
+                if any(['予約' in m['surface'] for m in morphs]) or selection == '1':
+                    await self.feedback("予約を管理します", 0)
                     return Reserve(self.user, None)
                 if any(['履歴' in m['surface'] for m in morphs]) or any(['来場' in m['surface'] for m in morphs]) \
-                        or any(['記録' in m['surface'] for m in morphs]) or selection=='2':
-                    await self.feedback("来場者記録を管理します",0)
+                        or any(['記録' in m['surface'] for m in morphs]) or selection == '2':
+                    await self.feedback("来場者記録を管理します", 0)
                     return Record(self.user, None)
-                elif any(['終了' in m['surface'] for m in morphs]) or selection=='3':
-                    await self.feedback("終了します",0)
+                elif any(['終了' in m['surface'] for m in morphs]) or selection == '3':
+                    await self.feedback("終了します", 0)
                     return SeeYou(self.user)
                 #elif any(['転送' in m['surface'] for m in morphs]) or selection=='2':
                 #    await self.sending('{"feedback":"来場記録を管理します"}')
                 #    return TransferRecord_step1Receive(self.user)
                 else:
-                    self.error = INF_NO_TARGET_WORDS
+                    self.error = com.INF_NO_TARGET_WORDS
                     self.counter += 1
                     await asyncio.sleep(1)
                     return self
             else:
-                if any(['予約' in m['surface'] for m in morphs]) or selection=='1':
-                    await self.feedback("予約を表示します",0)
-                    return await self.actMyReservation()
-                elif any(['知ら' in m['surface'] for m in morphs]) or selection=='2':
-                    await self.feedback("お知らせページを開きます",2)
-                    return await self.actNews()
+                if any(['予約' in m['surface'] for m in morphs]) or selection == '1':
+                    await self.feedback("予約を表示します", 0)
+                    return await self.act_myreservation()
+                elif any(['知ら' in m['surface'] for m in morphs]) or selection == '2':
+                    await self.feedback("お知らせページを開きます", 2)
+                    return await self.act_news()
                 # elif any(['コード' in m['surface'] for m in morphs]) or selection=='3':
                 #     await self.sending('{"feedback":"個人コードを表示します"}')
                 #     return await self.actMyCode()
-                elif any(['ポイント' in m['surface'] for m in morphs]) or selection=='3':
-                    await self.feedback("ポイントを表示します",0)
-                    return await self.actMyPoint()
-                elif any(['終了' in m['surface'] for m in morphs]) or selection=='4':
-                    await self.feedback("終了します",0)
+                elif any(['ポイント' in m['surface'] for m in morphs]) or selection == '3':
+                    await self.feedback("ポイントを表示します", 0)
+                    return await self.act_mypoint()
+                elif any(['終了' in m['surface'] for m in morphs]) or selection == '4':
+                    await self.feedback("終了します", 0)
                     return SeeYou(self.user)
-                elif any(['他' in m['surface'] for m in morphs]) or selection=='5':
+                elif any(['他' in m['surface'] for m in morphs]) or selection == '5':
                     return Secondary(self.user, self)
                 else:
-                    self.error = INF_NO_TARGET_WORDS
-                    await self.sendStr('{"feedback":"よく聞き取れませんでした。"}')
+                    self.error = com.INF_NO_TARGET_WORDS
+                    await self.send_str('{"feedback":"よく聞き取れませんでした。"}')
                     self.counter += 1
                     await asyncio.sleep(1)
                     return self
 
-    async def actHELP(self):
-        print('actHELP')
-        TEXT = 'ご要件は？'
-        SPEECH = 'シニアがスマホを使うときに、苦手なことをお手伝いします。やりたいことをお話ください。' +\
+    async def act_help(self):
+        print('act_help')
+        text = 'ご要件は？'
+        speech = 'シニアがスマホを使うときに、苦手なことをお手伝いします。やりたいことをお話ください。' +\
                  '現在は、電話をかけること、ショートメッセージをおくること、LINEでメッセージを送ることを、お手伝いできます。'
-        DISPLAY = 'できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show": "{DISPLAY}"' + '}'
-        print(jsonText)
-        await self.sendStr(jsonText)
+        display = 'できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + '}'
+        print(json_text)
+        await self.send_str(json_text)
         return self
 
-    async def actMakeCall(self):
-        print('actMakeCall')
-        URL = 'apps://rakudana.com/client_app/make_call'
-        jsonText = '{' + f'"action":"invoke_app","url":"{URL}"' + '}'
-        print(jsonText)
-        await self.sendStr(jsonText)
+    async def act_make_call(self):
+        print('act_make_call')
+        # initially just pass personal name to client
+        # todo if the personal name is recorded in client phone, ask confirmation and directly dial it.
+        if len(self.user.ner.entitylist) == 1 and isinstance(self.user.ner.entitylist[0], Person):
+            name = self.user.ner.entitylist[0].sei + self.user.ner.entitylist[0].mei
+            url = f'apps://rakudana.com/client_app/make_call?contact={name}'
+        else:
+            url = 'apps://rakudana.com/client_app/make_call'
+        json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
+        print(json_text)
+        await self.send_str(json_text)
         return None
 
-    async def id2person(self, id):
-        print(f'id2person>{id}')
-        if id=='': return None
+    async def id2person(self, userid):
+        print(f'id2person>{userid}')
+        if userid == '': return None
         json_contents = \
-            json.loads(pdNames[(pdNames['id'] == id)].to_json(orient="records", force_ascii=False))
+            json.loads(names.nametable[(names.nametable['userid'] == userid)]
+                       .to_json(orient="records", force_ascii=False))
         print(f'id2person > cache returns {json_contents}')
         if len(json_contents) > 0:
             print(f'id2person > hit cache {json_contents}')
             json_contents = json_contents[0]
         else:
-            json_contents = await sendJson("https://npogenkikai.net/id2name.php",{"id": id})
+            json_contents = await send_json("https://npogenkikai.net/id2name.php", {"userid": userid})
             print(f'id2person > id2name returns {json_contents}')
         person = Person(json_contents['sei'], json_contents['seiyomi'],
                         json_contents['mei'], json_contents['meiyomi'],
-                        id, json_contents['lineid'])
+                        userid, json_contents['lineid'])
         await self.feedback(f'{person.seiyomi}{person.meiyomi}様ですね？', 0)
         return person
 
-    async def actMyReservation(self):
-        print('actMyReservation')
-        id = self.user.cookie2id()
-        if id!='':
-            self.user.person = await self.id2person(id)
+    async def act_myreservation(self):
+        print('act_myreservation')
+        userid = self.user.cookie2id()
+        if userid != '':
+            self.user.person = await self.id2person(userid)
         else:
             nm = AskName(self.user, self)
             while self.user.person is None:
                 persons = await self.prompt_and_interpret(nm)
-                if nm.error==ERR_TIMEOUT:
+                if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
-                if len(persons)==1: self.user.person = persons[0]
+                if len(persons) == 1:
+                    self.user.person = persons[0]
         #await self.feedback("予約登録状況を表示します。",2)
-        URL = 'https://npogenkikai.net/reservations?id=' + self.user.person.id
-        jsonText = '{' + f'"action":"goto_url","url":"{URL}"' + '}'
-        await self.sendStr(jsonText)
+        url = 'https://npogenkikai.net/reservations?id=' + self.user.person.id
+        json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
+        await self.send_str(json_text)
         return None
 
-    async def actMyCode(self):
-        print('actMyCode')
-        id = self.user.cookie2id()
-        if id!='':
-            self.user.person = await self.id2person(id)
+    async def act_mycode(self):
+        print('act_mycode')
+        userid = self.user.cookie2id()
+        if userid != '':
+            self.user.person = await self.id2person(userid)
         else:
             nm = AskName(self.user, self)
             while self.user.person is None:
                 persons = await self.prompt_and_interpret(nm)
-                if nm.error==ERR_TIMEOUT:
+                if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
-                if len(persons)==1: self.user.person = persons[0]
+                if len(persons) == 1: self.user.person = persons[0]
         #return ShowMyCode(self.user)
         #await self.feedback("個人コードを表示します。",2)
-        URL = 'https://npogenkikai.net/myqrcode?id=' + self.user.person.id
-        jsonText = '{' + f'"action":"goto_url","url":"{URL}"' + '}'
-        await self.sendStr(jsonText)
+        url = 'https://npogenkikai.net/myqrcode?id=' + self.user.person.id
+        await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
         return None
 
-    async def actNews(self):
-        print('actNews')
-        URL = 'https://npogenkikai.net/news'
-        jsonText = '{' + f'"action":"goto_url","url":"{URL}"' + '}'
-        await self.sendStr(jsonText)
+    async def act_news(self):
+        print('act_news')
+        url = 'https://npogenkikai.net/news'
+        await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
         return None
         #return ViewInlineFrame(self.user, URL)
 
-    async def actMyPoint(self):
+    async def act_mypoint(self):
         print('actMyPoint.react')
-        id = self.user.cookie2id()
-        if id!='':
-            self.user.person = await self.id2person(id)
+        userid = self.user.cookie2id()
+        if userid != '':
+            self.user.person = await self.id2person(userid)
         else:
             nm = AskName(self.user, self)
             while self.user.person is None:
                 persons = await self.prompt_and_interpret(nm)
-                if nm.error==ERR_TIMEOUT:
+                if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
-                if len(persons)==1: self.user.person = persons[0]
+                if len(persons) == 1:
+                    self.user.person = persons[0]
 
-        URL = 'https://npogenkikai.net/mypoints2?id=' + self.user.person.id
-        jsonText = '{' + f'"action":"goto_url","url":"{URL}"' + '}'
-        await self.sendStr(jsonText)
+        url = 'https://npogenkikai.net/mypoints2?id=' + self.user.person.id
+        json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
+        await self.send_str(json_text)
         return None
-        #return ViewInlineFrame(self.user, URL)
+        #return ViewInlineFrame(self.user, url)
+
 
 class Secondary(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
-        self.user = user
+    def __init__(self, usr, parent):
+        super().__init__(usr)
+        self.user = usr
         self.parent = parent
 
     async def prompt(self):
         print('Secondary.prompt')
-        SPEECH = 'お名前で登録すると、「げんきかい」のメンバーIDをスマホに記録します。このIDは、この対話サイトだけからみえる識別情報です。'
+        speech = 'お名前で登録すると、「げんきかい」のメンバーIDをスマホに記録します。' +\
+                 'このIDは、この対話サイトだけからみえる識別情報です。'
         if self.user.device == 'iPhone':
-            SPEECH += '事前に、設定、Safari、プライバシーとセキュリティ、でクッキーをONにしてからおこなって下さい。'
-        TEXT = '氏名登録'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["氏名登録","戻る"]' + '}'
-        await self.sendStr(jsonText)
+            speech += '事前に、設定、Safari、プライバシーとセキュリティ、でクッキーをONにしてからおこなって下さい。'
+        text = '氏名登録'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","suggestions":["氏名登録","戻る"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
@@ -606,183 +554,188 @@ class Secondary(Scene):
         if self.counter > 5:
             await self.feedback("終了します",1)
             return None
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
-        if any(['登録' in m['surface'] for m in morphs]) or selection=='1':
-            await self.feedback("登録します。",0)
+        if any(['登録' in m['surface'] for m in morphs]) or selection == '1':
+            await self.feedback("登録します。", 0)
             nm = AskName(self.user, self)
             while self.user.person is None:
                 persons = await self.prompt_and_interpret(nm)
-                if nm.error == ERR_TIMEOUT:
+                if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
-                if persons!=[] and len(persons) == 1:
+                if persons != [] and len(persons) == 1:
                     self.user.person = persons[0]
-            # store ID in client brwoser as Cookie
+            # store ID in client browser as Cookie
             # max-age is 60 days->5184000
-            cookie = f'genkikai_id={self.user.person.id}; host={config.HOST_EXTERNAL_IP}; path=/; max-age=5184000; secure; SameSite=Strict;'
-            jsonText = '{' + f'"action":"set_cookie","cookie":"{cookie}"' + '}'
-            await self.sendStr(jsonText)
-            await self.feedback("スマホにIDを記録しました。",2)
+            cookie = f'genkikai_id={self.user.person.id}; host={config.HOST_EXTERNAL_IP}; ' +\
+                     'path=/; max-age=5184000; secure; SameSite=Strict;'
+            json_text = '{' + f'"action":"set_cookie","cookie":"{cookie}"' + '}'
+            await self.send_str(json_text)
+            await self.feedback("スマホにIDを記録しました。", 2)
             self.user.cookie = f'genkikai_id={self.user.person.id}'
             return self.parent
-        elif any([m['surface'].startswith('戻') for m in morphs]) or selection=='2':
-            await self.feedback("戻ります。",0)
+        elif any([m['surface'].startswith('戻') for m in morphs]) or selection == '2':
+            await self.feedback("戻ります。", 0)
             return self.parent
         else:
-            self.error = INF_NO_TARGET_WORDS
+            self.error = com.INF_NO_TARGET_WORDS
             self.counter += 1
             await asyncio.sleep(1)
             return self
 
 
-class SendShortMessage_Input(Scene):
+class SendShortMessageInput(Scene):
 
     async def prompt(self):
-        print('SendShortMessage_Input.prompt')
-        SPEECH = '送信するメッセージをお話下さい。'
-        TEXT = 'メッセージ？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
-        await self.sendStr(jsonText)
+        print('SendShortMessageInput.prompt')
+        speech = '送信するメッセージをお話下さい。'
+        text = 'メッセージ？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}"' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
-        print('SendShortMessage_Input.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        print('SendShortMessageInput.interpret')
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
-        if len(morphs)>0:
-            print(f"SendShortMessage_Input.interpret > {jsonDict['recognized']}")
-            return SendShortMessage_Confirm(self.user, self, jsonDict['recognized'])
+        if len(morphs) > 0:
+            print(f"SendShortMessageInput.interpret > {json_dict['recognized']}")
+            return SendShortMessageConfirm(self.user, self, json_dict['recognized'])
         else:
             return self
 
-class SendShortMessage_Confirm(Scene):
 
-    def __init__(self, user, parent, msg):
-        super().__init__(user)
-        self.user = user
+class SendShortMessageConfirm(Scene):
+
+    def __init__(self, usr, parent, msg):
+        super().__init__(usr)
+        self.user = usr
         self.msg = msg
         self.parent = parent
 
     async def prompt(self):
-        print('SendShortMessage_Confirm.prompt')
-        SPEECH = 'このメッセージでよろしいですか？'
-        TEXT = 'OK？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show":"{self.msg}","suggestions":["はい","やり直す","キャンセル"]' + '}'
-        await self.sendStr(jsonText)
+        print('SendShortMessageConfirm.prompt')
+        speech = 'このメッセージでよろしいですか？'
+        text = 'OK？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show":"{self.msg}",' +\
+                    '"suggestions":["はい","やり直す","キャンセル"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('SendShortMessage.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS or intent == config.INTENT_CANCEL or selection == '3':
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS or intent == com.INTENT_CANCEL or selection == '3':
             await self.feedback("終了します", 1)
             return None
-        elif intent == config.INTENT_RETRY or selection == '2':
+        elif intent == com.INTENT_RETRY or selection == '2':
             return self.parent
-        elif intent == config.INTENT_YES or selection == '1':
+        elif intent == com.INTENT_YES or selection == '1':
             msg = urllib.parse.quote(self.msg)
-            URL = f'apps://rakudana.com/client_app/send_short_message?text={msg}'
-            jsonText = '{' + f'"action":"invoke_app","url":"{URL}"' + '}'
-            print(jsonText)
-            await self.sendStr(jsonText)
+            url = f'apps://rakudana.com/client_app/send_short_message?text={msg}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
+            print(json_text)
+            await self.send_str(json_text)
             return None
 
 
-class SendLineMessage_Input(Scene):
+class SendLineMessageInput(Scene):
 
     async def prompt(self):
-        print('SendLineMessage_Input.prompt')
-        SPEECH = '送信するメッセージをお話下さい。'
-        TEXT = 'メッセージ？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
-        await self.sendStr(jsonText)
+        print('SendLineMessageInput.prompt')
+        speech = '送信するメッセージをお話下さい。'
+        text = 'メッセージ？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}"' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
-        print('SendLineMessage_Input.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        print('SendLineMessageInput.interpret')
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
-        if len(morphs)>0:
-            return SendLineMessage_Confirm(self.user, self, jsonDict['recognized'])
+        if len(morphs) > 0:
+            return SendLineMessageConfirm(self.user, self, json_dict['recognized'])
         else:
             return self
 
-class SendLineMessage_Confirm(Scene):
 
-    def __init__(self, user, parent, msg):
-        super().__init__(user)
-        self.user = user
+class SendLineMessageConfirm(Scene):
+
+    def __init__(self, usr, parent, msg):
+        super().__init__(usr)
+        self.user = usr
         self.msg = msg
         self.parent = parent
 
     async def prompt(self):
-        print('SendLineMessage_Confirm.prompt')
-        SPEECH = 'このメッセージでよろしいですか？'
-        TEXT = 'OK？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show":"{self.msg}","suggestions":["はい","やり直す","キャンセル"]' + '}'
-        await self.sendStr(jsonText)
+        print('SendLineMessageConfirm.prompt')
+        speech = 'このメッセージでよろしいですか？'
+        text = 'OK？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show":"{self.msg}",' +\
+                    '"suggestions":["はい","やり直す","キャンセル"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('SendLineMessage.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS or intent == config.INTENT_CANCEL or selection == '3':
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS or intent == com.INTENT_CANCEL or selection == '3':
             await self.feedback("終了します", 1)
             return None
-        elif intent == config.INTENT_RETRY or selection == '2':
+        elif intent == com.INTENT_RETRY or selection == '2':
             return self.parent
-        elif intent == config.INTENT_YES or selection == '1':
+        elif intent == com.INTENT_YES or selection == '1':
             msg = urllib.parse.quote(self.msg)
-            URL = f'https://line.me/R/share?text={msg}'
-            jsonText = '{' + f'"action":"invoke_app","url":"{URL}"' + '}'
-            print(jsonText)
-            await self.sendStr(jsonText)
+            url = f'https://line.me/R/share?text={msg}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
+            print(json_text)
+            await self.send_str(json_text)
             return None
 
-
-pdNames = pd.DataFrame(data=names.names, columns=["id","sei","seiyomi","mei","meiyomi","lineid"])
 
 class AskName(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.parent = parent
 
     async def prompt(self):
         print('AskName.prompt')
-        if self.error == INF_NO_MATCHING_NAME:
-            SPEECH = '再度、お名前をはっきりとお話下さい。または、担当者にご連絡下さい。'
-            self.error = INF_RESET
-        elif self.error == INF_NOT_HEAR_WELL:
-            SPEECH = '再度、お名前をお話下さい。'
-            self.error = INF_RESET
-        elif self.error == INF_NO_TARGET_WORDS:
-            SPEECH = '姓もしくは姓名を下さい。'
+        if self.error == com.INF_NO_MATCHING_NAME:
+            speech = '再度、お名前をはっきりとお話下さい。または、担当者にご連絡下さい。'
+            self.error = com.INF_RESET
+        elif self.error == com.INF_NOT_HEAR_WELL:
+            speech = '再度、お名前をお話下さい。'
+            self.error = com.INF_RESET
+        elif self.error == com.INF_NO_TARGET_WORDS:
+            speech = '姓もしくは姓名を下さい。'
         else:
-            SPEECH = 'お名前をください。'
-        TEXT = 'お名前（姓名）は？'
-        if (self.user.org=='genkikai' and self.user.role=='member' and self.user.device=='iPhone'):#not self.user.capability_sr):
-            jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["小川","小木曾","今村","佐藤佳","島田","所","中越","中島","久留","馬渕寿","渡辺美"]' + '}'
+            speech = 'お名前をください。'
+        text = 'お名前（姓名）は？'
+        if self.user.org == 'genkikai' and self.user.role == 'member' and self.user.device == 'iPhone':
+            # not self.user.capability_sr):
+            json_text = '{' + f'"speech":"{speech}","text":"{text}"' + \
+                ',"suggestions":["小川","小木曾","今村","佐藤佳","島田","所","中越","中島","久留","馬渕寿","渡辺美"]' + '}'
         else:
-            jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
-        await self.sendStr(jsonText)
+            json_text = '{' + f'"speech":"{speech}","text":"{text}"' + '}'
+        await self.send_str(json_text)
         return
 
     def parse_seimei(self, morph1, morph2):
         print(f'parse_seimei > {morph1}, {morph2}')
-        if len(morph1)>1 and 'pos' in morph1.keys() and morph1['pos'] == '名詞固有名詞人名姓*' and\
+        if len(morph1) > 1 and 'pos' in morph1.keys() and morph1['pos'] == '名詞固有名詞人名姓*' and\
                 'pos' in morph2.keys() and morph2['pos'] == '名詞固有名詞人名名*':
             print(f'parse_seimei > found sei mei candidate')
             return morph1['surface'], morph1['base'], morph2['surface'], morph2['base']
         else:
-            return '','','',''
+            return '', '', '', ''
 
     def parse_mei(self, morph):
         print(f'parse_mei > {morph}')
@@ -791,151 +744,161 @@ class AskName(Scene):
             if 'base' in morph:
                 return morph['surface'], morph['base']
             else:
-                return '',''
+                return '', ''
         else:
-            return '',''
+            return '', ''
 
     async def parse_name(self, morphs):
         print(f'parse_name > {morphs}')
         json_contents = ''
-        personList = []
+        personlist = []
         idx = 0
         while True:
             if idx == len(morphs): break
-            sei, seiyomi, mei, meiyomi = '', '','',''
+            sei, seiyomi, mei, meiyomi = '', '', '', ''
             if idx + 1 <= len(morphs) - 1:
                 sei, seiyomi, mei, meiyomi = self.parse_seimei(morphs[idx], morphs[idx + 1])
             if seiyomi != '' and meiyomi != '':
-                # try pdNames cache first
+                # try nametable cache first
                 json_contents = \
-                    json.loads(pdNames[(pdNames['seiyomi'] == seiyomi) & (pdNames['meiyomi'] == meiyomi)].to_json(
-                        orient="records", force_ascii=False))
+                    json.loads(names.nametable[
+                                   (names.nametable['seiyomi'] == seiyomi) & (names.nametable['meiyomi'] == meiyomi)
+                    ].to_json(orient="records", force_ascii=False))
                 print(f'parse_name > cache returns {json_contents}')
                 if len(json_contents) > 0:
                     print(f'parse_name > yomi hit cache {json_contents}')
                 else:
                     #たけうち->SR returns ’竹内', base'たけうち’ -> here try to match base form'たけうち' against DB.
                     # Mostly it works to register surface form which SR recognized as user word of Mecab.
-                    json_contents = await sendJson("https://npogenkikai.net/name2id.php",
-                                                        {"seiyomi": seiyomi,
-                                                         "meiyomi": meiyomi})
+                    json_contents = await send_json(
+                        "https://npogenkikai.net/name2id.php",
+                        {"seiyomi": seiyomi, "meiyomi": meiyomi}
+                    )
                     print(f'parse_name > with yomi, name2id returns {json_contents}')
                     # try to match ’竹内’
                     if len(json_contents):
-                        json_contents = await sendJson("https://npogenkikai.net/name2id.php",
-                                                       {"sei": sei,
-                                                        "meiyomi": meiyomi})
+                        json_contents = await send_json(
+                            "https://npogenkikai.net/name2id.php",
+                            {"sei": sei, "meiyomi": meiyomi}
+                        )
                         print(f'parse_name > with hyouki, name2id returns {json_contents}')
                 idx += 1
             else:
                 # try with sei only
                 sei, seiyomi = self.parse_mei(morphs[idx])
                 if seiyomi != '':
-                    json_contents = json.loads(pdNames[ pdNames['seiyomi']==seiyomi ].to_json(orient="records", force_ascii=False))
+                    json_contents = json.loads(
+                        names.nametable[names.nametable['seiyomi'] == seiyomi]
+                        .to_json(orient="records", force_ascii=False)
+                    )
                     if len(json_contents) > 0:
                         print(f'parse_name > cache returns {json_contents}')
                     else:
-                        json_contents = await sendJson("https://npogenkikai.net/name2id.php",
-                                                        {"seiyomi": seiyomi})
+                        json_contents = await send_json(
+                            "https://npogenkikai.net/name2id.php",
+                            {"seiyomi": seiyomi}
+                        )
                         print(f'parse_name > name2id returns {json_contents}')
-            if seiyomi!='':
-                if json_contents==[] or json_contents=='' or 'error' in json_contents:
-                    if meiyomi!='':
+            if seiyomi != '':
+                if json_contents == [] or json_contents == '' or 'error' in json_contents:
+                    if meiyomi != '':
                         await self.feedback(seiyomi + meiyomi + '様のお名前が見つかりませんでした', 0)
                     else:
-                        await self.feedback(seiyomi + '様のお名前が見つかりませんでした',0)
-                    self.error = INF_NO_MATCHING_NAME
+                        await self.feedback(seiyomi + '様のお名前が見つかりませんでした', 0)
+                    self.error = com.INF_NO_MATCHING_NAME
                     return []
                 elif len(json_contents) > 1:
                     multiple_mei = ' '.join([c['meiyomi']+'さま' for c in json_contents])
-                    await self.feedback(seiyomi + 'さまに、複数の該当者がいます。'+multiple_mei+'です。名前もご指定下さい。',0)
-                    self.error = INF_MULTIPLE_MATCH
+                    await self.feedback(seiyomi + 'さまに、複数の該当者がいます。' +
+                                        multiple_mei + 'です。名前もご指定下さい。', 0)
+                    self.error = com.INF_MULTIPLE_MATCH
                     return []
-                elif len(json_contents) == 1 and 'id' in json_contents[0]:
-                    person = Person(json_contents[0]['sei'],json_contents[0]['seiyomi'],
-                                    json_contents[0]['mei'],json_contents[0]['meiyomi'],
-                                    json_contents[0]['id'],
-                                    '')
+                elif len(json_contents) == 1 and 'userid' in json_contents[0]:
+                    person = Person(json_contents[0]['sei'], json_contents[0]['seiyomi'], json_contents[0]['mei'],
+                                    json_contents[0]['meiyomi'], json_contents[0]['userid'])
                     await self.feedback(f'{person.seiyomi}{person.meiyomi}様ですね？',0)
-                    personList.append(person)
+                    personlist.append(person)
             idx += 1
 
         # if personList==[]:
         #     await self.feedback("よく聞き取れませんでした。",0)
         #     self.error = INF_NOT_HEAR_WELL
         #     return []
-        return personList
+        return personlist
 
     async def interpret(self):
         print('AskName.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS: return []
-        if (self.user.org=='genkikai' and self.user.role=='member' and self.user.device=='iPhone'):# and not self.user.capabilnot self.user.capability_sr):
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
+            return []
+        if self.user.org == 'genkikai' and self.user.role == 'member' and \
+                self.user.device == 'iPhone':  # and not self.user.capabilnot self.user.capability_sr):
             print(f'interpret> button action detected: {selection}')
-            #["小川","小木曽","島田","久留","渡辺"]
+            # ["小川","小木曽","島田","久留","渡辺"]
             if selection == '1':
-                person = Person('小川','オガワ','洋子','ヨウコ','M0047','')
-                await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？",0)
+                person = Person('小川', 'オガワ', '洋子', 'ヨウコ', 'M0047')
+                await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
             elif selection == '2':
-                person = Person('小木曾','オギソ','加代子','カヨコ','M0048','')
-                await self.feedback(f'{person.seiyomi}{person.meiyomi}様ですね？',0)
+                person = Person('小木曾', 'オギソ', '加代子', 'カヨコ', 'M0048')
+                await self.feedback(f'{person.seiyomi}{person.meiyomi}様ですね？', 0)
                 return [person]
             elif selection == '3':
-                person = Person('今村','イマムラ','京子','キョウコ','M0027','')
-                await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？",0)
-                return [person]
-            elif selection=='4':
-                person = Person('佐藤','サトウ','佳子','ヨシコ','M0098',"")
+                person = Person('今村', 'イマムラ', '京子', 'キョウコ', 'M0027')
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
-            elif selection=='5':
-                person = Person('島田','シマダ','喜代子','キヨコ','M0103',"U9eaedcaf69309ebb504bcadc344fc910")
+            elif selection == '4':
+                person = Person('佐藤', 'サトウ', '佳子', 'ヨシコ', 'M0098')
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
-            elif selection=='6':
-                person = Person('所','トコロ','美栄子','ミエコ','M0137',"U6b780e3bc04cb3fa7e868c73901d7531")
+            elif selection == '5':
+                person = Person('島田', 'シマダ', '喜代子', 'キヨコ', 'M0103', "U9eaedcaf69309ebb504bcadc344fc910")
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
-            elif selection=='7':
-                person = Person('中越','ナカコシ','洋子','ヨウコ','M0141',"")
+            elif selection == '6':
+                person = Person('所', 'トコロ', '美栄子', 'ミエコ', 'M0137', "U6b780e3bc04cb3fa7e868c73901d7531")
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
-            elif selection=='8':
-                person = Person('中島','ナカジマ','孝子','タカコ','M0142',"")
+            elif selection == '7':
+                person = Person('中越', 'ナカコシ', '洋子', 'ヨウコ', 'M0141')
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
-            elif selection=='9':
-                person = Person('久留','ヒサトメ','正秀','マサヒデ','M0168',"Ue25373ca7df45fd53d6cdbe1cc592953")
+            elif selection == '8':
+                person = Person('中島', 'ナカジマ', '孝子', 'タカコ', 'M0142')
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
-            elif selection=='10':
-                person = Person('馬渕','マブチ','寿美子','スミコ','M0189','')
+            elif selection == '9':
+                person = Person('久留', 'ヒサトメ', '正秀', 'マサヒデ', 'M0168', "Ue25373ca7df45fd53d6cdbe1cc592953")
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
-            elif selection=='11':
-                person = Person('渡辺','ワタナベ','美津子','ミツコ','M0227','')
+            elif selection == '10':
+                person = Person('馬渕', 'マブチ', '寿美子', 'スミコ', 'M0189')
+                await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
+                return [person]
+            elif selection == '11':
+                person = Person('渡辺', 'ワタナベ', '美津子', 'ミツコ', 'M0227')
                 await self.feedback(f"{person.seiyomi}{person.meiyomi}様ですね？", 0)
                 return [person]
         else:
-            #if len(morphs)>0: await self.parse_name(morphs, self.person)
+            # if len(morphs)>0: await self.parse_name(morphs, self.person)
             return await self.parse_name(morphs)
 
+
 class AskDate(Scene):
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.parent = parent
 
     async def prompt(self):
         print('AskDate.prompt')
-        if self.error == INF_NOT_HEAR_WELL:
-            SPEECH = '何月何日と、ご指定下さい。'
-            self.error = INF_RESET
+        if self.error == com.INF_NOT_HEAR_WELL:
+            speech = '何月何日と、ご指定下さい。'
+            self.error = com.INF_RESET
         else:
-            SPEECH = '日にちを、ご指定下さい。'
-        TEXT = '日にち？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
-        await self.sendStr(jsonText)
+            speech = '日にちを、ご指定下さい。'
+        text = '日にち？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}"' + '}'
+        await self.send_str(json_text)
         return
     
     def parse_month_day(self, morph1, morph2, day):
@@ -945,7 +908,7 @@ class AskDate(Scene):
             day.day = morph1['surface']
 
     async def parse_date(self, morphs):
-        day = Day('','','','')
+        day = Day('', '', '', '')
         for idx, val in enumerate(morphs):
             if idx > 0: self.parse_month_day(morphs[idx - 1], morphs[idx], day)
         if any(['今日' in m['surface'] for m in morphs]):
@@ -969,49 +932,51 @@ class AskDate(Scene):
 
     async def interpret(self):
         print('askDate.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             return None
         else:
-            if len(morphs)>0:
+            if len(morphs) > 0:
                 return await self.parse_date(morphs)
             else:
                 return None
 
+
 class AskAmPm(Scene):
-    def __init__(self, user, parent, day):
-        super().__init__(user)
+    def __init__(self, usr, parent, day):
+        super().__init__(usr)
         self.parent = parent
         self.day = day
 
     async def prompt(self):
         print('AskAmPm.prompt')
-        SPEECH = '午前午後を、ご指定下さい。'
-        TEXT = '午前午後？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + ',"suggestions":["午前","午後"]'+'}'
-        await self.sendStr(jsonText)
+        speech = '午前午後を、ご指定下さい。'
+        text = '午前午後？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}"' + ',"suggestions":["午前","午後"]'+'}'
+        await self.send_str(json_text)
         return
     
-    async def parse_ampm(self,morphs,selection,dt):
-        if any(['午前' in m['surface'] for m in morphs]) or selection=='1':
+    async def parse_ampm(self, morphs, selection, dt):
+        if any(['午前' in m['surface'] for m in morphs]) or selection == '1':
             dt.ampm = 'am'
-            await self.feedback("午前ですね？",0)
-        elif any(['午後' in m['surface'] for m in morphs]) or selection=='2':
+            await self.feedback("午前ですね？", 0)
+        elif any(['午後' in m['surface'] for m in morphs]) or selection == '2':
             dt.ampm = 'pm'
             await self.feedback("午後ですね？",0)
 
     async def interpret(self):
         print('AskAmPm.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             return None
         else:
-            await self.parse_ampm(morphs,selection,self.day)
+            await self.parse_ampm(morphs, selection, self.day)
+
 
 class Reserve(Scene):
 
-    def __init__(self, user, reserve):
-        super().__init__(user)
+    def __init__(self, usr, reserve):
+        super().__init__(usr)
         if reserve is None:
             self.reservation = Reservation()
         else:
@@ -1020,12 +985,13 @@ class Reserve(Scene):
 
     async def prompt(self):
         print('Reserve.prompt')
-        self.error = INF_RESET
+        self.error = com.INF_RESET
         if self.user.role == 'admin':
-            SPEECH = '登録、削除、一覧表示、確認メッセージ送信のどれですか？'
-            TEXT = '登録,削除,一覧,確認メッセ？'
-            jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["登録","削除","一覧","確認メッセ","終了"]' + '}' #確認一斉送信を使う？
-            await self.sendStr(jsonText)
+            speech = '登録、削除、一覧表示、確認メッセージ送信のどれですか？'
+            text = '登録,削除,一覧,確認メッセ？'
+            json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
+                        '"suggestions":["登録","削除","一覧","確認メッセ","終了"]' + '}'  # 確認一斉送信を使う？
+            await self.send_str(json_text)
             return
 
     async def interpret(self):
@@ -1033,102 +999,103 @@ class Reserve(Scene):
         if self.counter > 5:
             await self.feedback("終了します",0)
             return None
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
         if any(['登録' in m['surface'] for m in morphs]) or selection == '1':
-            await self.feedback("予約の登録を行います",0)
+            await self.feedback("予約の登録を行います", 0)
             self.operation = 'add'
             return UpdateReservation(self.user, self)
         elif any(['削除' in m['surface'] for m in morphs]) or selection == '2':
             self.operation = 'delete'
-            await self.feedback("予約の削除を行います",0)
+            await self.feedback("予約の削除を行います", 0)
             return UpdateReservation(self.user, self)
         elif any(['一覧' in m['surface'] for m in morphs]) or selection == '3':
-            await self.feedback("予約の一覧を表示します",2)
-            return await self.actListReservation()
+            await self.feedback("予約の一覧を表示します", 2)
+            return await self.act_list_reservation()
         elif any(['確認' in m['surface'] for m in morphs]) or any(['送信' in m['surface'] for m in morphs]) or \
-            any(['メッセージ' in m['surface'] for m in morphs]) or selection == '4':
-            await self.feedback("これから指定日の予約者に確認メッセージをLINEで送ります",0)
-            return await self.actSendMessage()
+                any(['メッセージ' in m['surface'] for m in morphs]) or selection == '4':
+            await self.feedback("これから指定日の予約者に確認メッセージをLINEで送ります", 0)
+            return await self.act_send_message()
         elif any(['終了' in m['surface'] for m in morphs]) or selection == '5':
-            await self.feedback("終了します",2)
+            await self.feedback("終了します", 2)
             return SeeYou(self.user)
         else:
-            self.error = INF_NO_TARGET_WORDS
-            await self.feedback("よく聞き取れませんでした",1)
+            self.error = com.INF_NO_TARGET_WORDS
+            await self.feedback("よく聞き取れませんでした", 1)
             self.counter += 1
             return self
 
-    async def actListReservation(self):
-        print('actListReservation')
+    async def act_list_reservation(self):
+        print('act_list_reservation')
         await asyncio.sleep(2)
-        URL = 'https://npogenkikai.net/reservations/'
-        jsonText = '{' + f'"action":"goto_url","url":"{URL}"' + '}'
-        print(jsonText)
-        await self.sendStr(jsonText)
+        url = 'https://npogenkikai.net/reservations/'
+        json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
+        print(json_text)
+        await self.send_str(json_text)
         return None
 
-    async def actSendMessage(self):
+    async def act_send_message(self):
         print('actSendMessage')
         self.reservation = Reservation()
         dt = AskDate(self.user, self)
         while self.reservation.date is None:
             self.reservation.date = await self.prompt_and_interpret(dt)
-            if dt.error==ERR_TIMEOUT:
+            if dt.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
                 return None
         ap = AskAmPm(self.user, self, self.reservation.date)
-        while self.reservation.date.ampm=='':
+        while self.reservation.date.ampm == '':
             await self.prompt_and_interpret(ap)
-            if ap.error==ERR_TIMEOUT:
+            if ap.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
                 return None
         return SendReservationMessageS(self.user, self)
 
+
 class UpdateReservation(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.parent = parent
         self.reservation = parent.reservation
         self.operation = parent.operation
 
     async def prompt(self):
         print('UpdateReservation.prompt')
-        SPEECH = '予約を'
-        TEXT = ''
-        DISPLAY = ''
+        speech = '予約を'
+        text = ''
+        display = ''
         if self.operation == "add":
-            SPEECH += '追加する'
+            speech += '追加する'
         else:
-            SPEECH += '削除する'
+            speech += '削除する'
         if self.reservation.date is None:
-            SPEECH += '日にち、午前午後'
-            TEXT += '日にち、午前午後'
+            speech += '日にち、午前午後'
+            text += '日にち、午前午後'
         else:
-            DISPLAY = f'{self.reservation.date.month}月{self.reservation.date.day}日{self.reservation.date.ampm}'
-        if self.reservation.memberList==[]:
-            SPEECH += '、氏名'
-            if TEXT != '':
-                TEXT += '、氏名'
+            display = f'{self.reservation.date.month}月{self.reservation.date.day}日{self.reservation.date.ampm}'
+        if not self.reservation.memberlist:
+            speech += '、氏名'
+            if text != '':
+                text += '、氏名'
             else:
-                TEXT = '氏名'
+                text = '氏名'
         else:
-            DISPLAY = ''
-            for member in self.reservation.memberList:
-                DISPLAY += f' {member.sei}{member.mei}様'
-        SPEECH += 'をご指定ください。'
-        TEXT += '？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show":"{DISPLAY}"' + '}'
-        await self.sendStr(jsonText)
+            display = ''
+            for member in self.reservation.memberlist:
+                display += f' {member.sei}{member.mei}様'
+        speech += 'をご指定ください。'
+        text += '？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show":"{display}"' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('UpdateReservation.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
 
@@ -1137,7 +1104,7 @@ class UpdateReservation(Scene):
             self.reservation.date = await dt.parse_date(morphs)
             while self.reservation.date is None:
                 self.reservation.date = await self.prompt_and_interpret(dt)
-                if dt.error == ERR_TIMEOUT:
+                if dt.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
         if self.reservation.date.ampm == '':
@@ -1145,67 +1112,69 @@ class UpdateReservation(Scene):
             await ap.parse_ampm(morphs,selection,self.reservation.date)
             while self.reservation.date.ampm == '':
                 await self.prompt_and_interpret(ap)
-                if ap.error == ERR_TIMEOUT:
+                if ap.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
-        if self.reservation.memberList==[]:
+        if not self.reservation.memberlist:
             nm = AskName(self.user, self)
-            self.reservation.memberList = await nm.parse_name(morphs)
-            while self.reservation.memberList==[]:
-                self.reservation.memberList = await self.prompt_and_interpret(nm)
-                if nm.error == ERR_TIMEOUT:
+            self.reservation.memberlist = await nm.parse_name(morphs)
+            while not self.reservation.memberlist:
+                self.reservation.memberlist = await self.prompt_and_interpret(nm)
+                if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
 
         return ConfirmReservation(self.user,self)
 
+
 class ConfirmReservation(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.parent = parent
         self.reservation = parent.reservation
         self.operation = parent.operation
 
     async def prompt(self):
         print('ConfirmReservation.prompt')
-        if self.operation=="add":
-            SPEECH = '以下を追加しますか？'
-            TEXT = '追加：'
+        if self.operation == "add":
+            speech = '以下を追加しますか？'
+            text = '追加：'
         else:
-            SPEECH = '以下を削除しますか？'
-            TEXT = '削除：'
-        TEXT += f'{self.reservation.date.month}月{self.reservation.date.day}日'
-        if self.reservation.date.ampm =='am':
-            TEXT += "午前"
+            speech = '以下を削除しますか？'
+            text = '削除：'
+        text += f'{self.reservation.date.month}月{self.reservation.date.day}日'
+        if self.reservation.date.ampm == 'am':
+            text += "午前"
         else:
-            TEXT += "午後"
+            text += "午後"
         #TEXT += f':{self.reservation.member.sei}{self.reservation.member.mei}様'
-        for member in self.reservation.memberList:
-            TEXT += f',{member.sei}{member.mei}様'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}", "suggestions":["はい","いいえ","日付修正","人名修正"]' + '}'
-        await self.sendStr(jsonText)
+        for member in self.reservation.memberlist:
+            text += f',{member.sei}{member.mei}様'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}", ' +\
+                    '"suggestions":["はい","いいえ","日付修正","人名修正"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('ConfirmReservation.interpret')
         if self.counter > 5:
-            await self.feedback("終了します",0)
+            await self.feedback("終了します", 0)
             return None
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
 
         if selection == '1' or any(['はい' in m['surface'] for m in morphs]):
-            return await self.actUpdateReservation()
+            return await self.act_update_reservation()
         elif selection == '2' or any(['いいえ' in m['surface'] for m in morphs]):
-            await self.feedback("キャンセルします",0)
+            await self.feedback("キャンセルします", 0)
             return PostReservation(self.user, self)
         elif selection == '3' or any(['日付' in m['surface'] for m in morphs]):
             await self.feedback("戻ります",0)
             self.parent.reservation = Reservation()
-            self.parent.reservation.memberList = self.reservation.memberList
+            self.parent.reservation.memberlist = self.reservation.memberlist
             return self.parent
         elif selection == '4' or any(['人名' in m['surface'] for m in morphs]):
             await self.feedback("戻ります",0)
@@ -1217,42 +1186,42 @@ class ConfirmReservation(Scene):
             self.counter += 1
             return self
 
-    async def actUpdateReservation(self):
-        print('actUpdateReservation')
+    async def act_update_reservation(self):
+        print('act_update_reservation')
         date = f'{self.reservation.date.year}/{self.reservation.date.month}/{self.reservation.date.day}'
         url = "https://npogenkikai.net/reserve.php"
-        # json = {"command": self.operation,"id": self.reservation.member.id,"date": date,"ampm": self.reservation.date.ampm}
-        idList = [m.id for m in self.reservation.memberList]
-        json = {"command": self.operation,"ids": idList,"date": date,"ampm": self.reservation.date.ampm}
-        print(f'{json}')
-        th = threading.Thread(target=sendJson_sync, args=([url,json]))
+        id_list = [m.id for m in self.reservation.memberlist]
+        j = {"command": self.operation,"ids": id_list,"date": date,"ampm": self.reservation.date.ampm}
+        print(f'{j}')
+        th = threading.Thread(target=send_json_sync, args=([url, j]))
         th.start()
         #return SendReservationMessage(self.user,self)
         return PostReservation(self.user, self)
 
+
 class PostReservation(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.reservation = parent.reservation
 
     async def prompt(self):
         print('PostReservation.prompt')
-        SPEECH = '同じ日時枠で予約作業を続けますか？'
-        TEXT = '同じ時間枠？終了？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + ',"suggestions":["同一時間枠","終了"]' + '}'
-        await self.sendStr(jsonText)
+        speech = '同じ日時枠で予約作業を続けますか？'
+        text = '同じ時間枠？終了？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}"' + ',"suggestions":["同一時間枠","終了"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('PostReservation.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts!=SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
         if any([m['surface'].startswith('同') for m in morphs]) or \
-                any([m['surface'].startswith('続') for m in morphs]) or selection=='1':
-            await self.feedback("同じ時間枠で予約管理を続けます",0)
+                any([m['surface'].startswith('続') for m in morphs]) or selection == '1':
+            await self.feedback("同じ時間枠で予約管理を続けます", 0)
             reservation = Reservation()
             reservation.date = self.reservation.date
             return Reserve(self.user, reservation)
@@ -1263,35 +1232,40 @@ class PostReservation(Scene):
 
 class SendReservationMessageS(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.reservation = parent.reservation
         self.idList = []
 
     async def prompt(self):
         print('SendReservationMessageS.prompt')
-        self.error = INF_RESET
-        SPEECH = '指定の時間枠の予約者です。よろしければ、全員にLINEで確認メッセージを送信します。'
-        TEXT = '送信？'
+        self.error = com.INF_RESET
+        speech = '指定の時間枠の予約者です。よろしければ、全員にLINEで確認メッセージを送信します。'
+        text = '送信？'
         date = f'{self.reservation.date.year}/{self.reservation.date.month}/{self.reservation.date.day}'
-        self.idList = await sendJson("https://npogenkikai.net/reserve.php",
-                                          {"command": "listbytimeslot",
-                                           "date": date,
-                                           "ampm": self.reservation.date.ampm})
-        list = f'{self.reservation.date.month}月{self.reservation.date.day}日{self.reservation.date.ampm}の予約:<br>'
+        self.idList = await send_json(
+            "https://npogenkikai.net/reserve.php",
+            {"command": "listbytimeslot", "date": date, "ampm": self.reservation.date.ampm}
+        )
+        lst = f'{self.reservation.date.month}月{self.reservation.date.day}日{self.reservation.date.ampm}の予約:<br>'
         for r in self.idList:
-            id = r['id']
-            nameList = json.loads(pdNames[(pdNames['id'] == id)].to_json(orient="records", force_ascii=False))
-            print(f'cache: {nameList}')
-            if len(nameList) == 1:
-                name = nameList[0]
-            elif len(nameList) == 0:
-                name = await sendJson("https://npogenkikai.net/id2name.php", {"id": id})
+            userid = r['userid']
+            name_list = json.loads(
+                names.nametable[(names.nametable['userid'] == userid)]
+                .to_json(orient="records", force_ascii=False)
+            )
+            print(f'cache: {name_list}')
+            name = ''
+            if len(name_list) == 1:
+                name = name_list[0]
+            elif len(name_list) == 0:
+                name = await send_json("https://npogenkikai.net/id2name.php", {"userid": userid})
                 print(f'id2name: {name}')
-            nameStr = name['sei'] + name['mei']
-            list += ' ' + nameStr
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show":"{list}","suggestions":["送信","キャンセル"]' + '}'
-        await self.sendStr(jsonText)
+            name_str = name['sei'] + name['mei']
+            lst += ' ' + name_str
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show":"{lst}",' +\
+                    '"suggestions":["送信","キャンセル"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
@@ -1299,71 +1273,79 @@ class SendReservationMessageS(Scene):
         if self.counter > 5:
             await self.feedback("終了します",1)
             return None
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts != SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
-        if any(['送信' in m['surface'] for m in morphs]) or selection=='1':
+        if any(['送信' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("送信します",0)
-            return await self.actSendMessage()
-        elif any(['キャンセル' in m['surface'] for m in morphs]) or selection=='2':
+            return await self.act_send_message()
+        elif any(['キャンセル' in m['surface'] for m in morphs]) or selection == '2':
             await self.feedback("送信をキャンセルします",0)
             return Reserve(self.user, None)
         else:
-            self.error = INF_NO_TARGET_WORDS
+            self.error = com.INF_NO_TARGET_WORDS
             await self.feedback("よく聞き取れませんでした",1)
             self.counter += 1
             return self
 
-    async def actSendMessage(self):
+    async def act_send_message(self):
         print('actSendMessage')
         print(f'{self.idList}')
         sent = ''
         notsent = ''
         for r in self.idList:
-            id = r['id']
+            userid = r['userid']
             lineid = ''
-            nameStr = ''
-            json_contents = json.loads(pdNames[(pdNames['id'] == id)].to_json(orient="records", force_ascii=False))
+            name_str = ''
+            json_contents = json.loads(
+                names.nametable[(names.nametable['userid'] == userid)]
+                .to_json(orient="records", force_ascii=False)
+            )
             if len(json_contents) == 1:
                 name = json_contents[0]
-                nameStr = name['sei'] + name['mei']
+                name_str = name['sei'] + name['mei']
                 lineid = name['lineid']
             elif len(json_contents) == 0:
-                #json_contents = await sendJson("https://npogenkikai.net/id2lineid.php",{"id":id})
-                name = await sendJson("https://npogenkikai.net/id2name.php", {"id": id})
-                nameStr = name['sei'] + name['mei']
+                #json_contents = await sendJson("https://npogenkikai.net/id2lineid.php",{"userid":userid})
+                name = await send_json("https://npogenkikai.net/id2name.php", {"userid": userid})
+                name_str = name['sei'] + name['mei']
                 lineid = name['lineid']
-            print(lineid, nameStr)
+            print(lineid, name_str)
             if lineid != '':
-                message = f'(試験運用です) {nameStr}様、'
-                message += f'げんきかいの健康麻雀の、{self.reservation.date.month}月{self.reservation.date.day}日{self.reservation.date.ampm}の枠が予約されています。'
-                message += 'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。ただ、このリンクをLINEから開いても動かないので、やり方は担当者に聞いて下さい。'
-                th = threading.Thread(target=sendToLine, args=([lineid, message]))
+                message = f'(試験運用です) {name_str}様、'
+                message += f'げんきかいの健康麻雀の、{self.reservation.date.month}月' +\
+                           f'{self.reservation.date.day}日{self.reservation.date.ampm}の枠が予約されています。'
+                message += 'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。' +\
+                           'ただ、このリンクをLINEから開いても動かないので、やり方は担当者に聞いて下さい。'
+                th = threading.Thread(target=send_to_line, args=([lineid, message]))
                 th.start()
                 print(message)
-                sent += nameStr + ','
+                sent += name_str + ','
             else:
                 #message = f'LINEのIDがわからないため、予約確認メッセージが送れません。{nameStr}さんのLINEIDを登録して下さい。'
                 #th = threading.Thread(target=sendToLine, args=([None, message]))
                 #th.start()
                 #print(message)
-                notsent += nameStr + ','
+                notsent += name_str + ','
         # send a log to admin at once
         admin_message = '[管理者情報]\n' + sent + 'の方々に、『'\
             + f'(試験運用です) X様、'\
-              + f'げんきかいの健康麻雀の、{self.reservation.date.month}月{self.reservation.date.day}日{self.reservation.date.ampm}の枠が予約されています。'\
-                + 'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。' + '』と送信されました。'
+              + f'げんきかいの健康麻雀の、{self.reservation.date.month}月{self.reservation.date.day}' +\
+                        '日{self.reservation.date.ampm}の枠が予約されています。' +\
+                        'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。' +\
+                        '』と送信されました。'
         admin_message += '\n次の方は、LINEIDが不明なため確認メッセージが送れませんでした：' + notsent
-        th = threading.Thread(target=sendToLine, args=([None, admin_message]))
+        th = threading.Thread(target=send_to_line, args=([None, admin_message]))
         th.start()
         print(admin_message)
         return Reserve(self.user, None)
 
+
 class Record(Scene):
 
-    def __init__(self, user, visit):
-        super().__init__(user)
+    def __init__(self, usr, visit):
+        super().__init__(usr)
         if visit is None:
             self.visit = Visit()
         else:
@@ -1372,12 +1354,13 @@ class Record(Scene):
 
     async def prompt(self):
         print('Record.prompt')
-        self.error = INF_RESET
+        self.error = com.INF_RESET
         if self.user.role == 'admin':
-            SPEECH = '登録、削除、予約からのコピー、一覧表示のどれですか？'
-            TEXT = '登録,削除,コピー,一覧？'
-            jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["登録","削除","コピー","一覧","終了"]' + '}'  # 確認一斉送信を使う？
-            await self.sendStr(jsonText)
+            speech = '登録、削除、予約からのコピー、一覧表示のどれですか？'
+            text = '登録,削除,コピー,一覧？'
+            json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
+                        '"suggestions":["登録","削除","コピー","一覧","終了"]' + '}'  # 確認一斉送信を使う？
+            await self.send_str(json_text)
             return
 
     async def interpret(self):
@@ -1385,8 +1368,8 @@ class Record(Scene):
         if self.counter > 5:
             await self.feedback("終了します", 0)
             return None
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts != SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return
         if any(['登録' in m['surface'] for m in morphs]) or selection == '1':
@@ -1402,44 +1385,45 @@ class Record(Scene):
             return Reservation2Record(self.user,self)
         elif any(['一覧' in m['surface'] for m in morphs]) or selection == '4':
             await self.feedback("来場記録の一覧を表示します", 2)
-            return await self.actListRecord()
+            return await self.act_list_record()
         elif any(['終了' in m['surface'] for m in morphs]) or selection == '5':
             await self.feedback("終了します", 2)
             return SeeYou(self.user)
         else:
-            self.error = INF_NO_TARGET_WORDS
+            self.error = com.INF_NO_TARGET_WORDS
             await self.feedback("よく聞き取れませんでした", 1)
             self.counter += 1
             return self
 
-    async def actListRecord(self):
+    async def act_list_record(self):
         print('actListRecord')
         await asyncio.sleep(2)
-        URL = 'https://npogenkikai.net/allrecords/'
-        jsonText = '{' + f'"action":"goto_url","url":"{URL}"' + '}'
-        print(jsonText)
-        await self.sendStr(jsonText)
+        url = 'https://npogenkikai.net/allrecords/'
+        json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
+        print(json_text)
+        await self.send_str(json_text)
         return None
+
 
 class Reservation2Record(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
-        self.user = user
+    def __init__(self, usr, parent):
+        super().__init__(usr)
+        self.user = usr
         self.parent = parent
 
     async def prompt(self):
         print('Reservation2Record.prompt')
-        SPEECH = 'コピーする日にちをご指定下さい。'
-        TEXT = '日にち？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + '}'
-        await self.sendStr(jsonText)
+        speech = 'コピーする日にちをご指定下さい。'
+        text = '日にち？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}"' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('Reservation2Record.interpret')
-        sts, jsonDict, morphs, selection = await self.decode_response()
-        if sts != SUCCESS:
+        sts, json_dict, morphs, selection = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
 
@@ -1447,116 +1431,119 @@ class Reservation2Record(Scene):
         date = await dt.parse_date(morphs)
         while date is None:
             date = await self.prompt_and_interpret(dt)
-            if dt.error == ERR_TIMEOUT:
+            if dt.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
                 return None
 
         return ConfirmReservation2Record(self.user, date)
 
+
 class ConfirmReservation2Record(Scene):
 
-    def __init__(self, user, date):
-        super().__init__(user)
-        self.user = user
+    def __init__(self, usr, date):
+        super().__init__(usr)
+        self.user = usr
         self.date = date
 
     async def prompt(self):
         print('ConfirmReservation2Record.prompt')
-        SPEECH = f'{self.date.year}年{self.date.month}月{self.date.day}日の分をコピーしますか？'
-        TEXT = f'{self.date.year}/{self.date.month}/{self.date.day}のコピー？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","suggestions":["コピー","キャンセル"]' + '}'
-        await self.sendStr(jsonText)
+        speech = f'{self.date.year}年{self.date.month}月{self.date.day}日の分をコピーしますか？'
+        text = f'{self.date.year}/{self.date.month}/{self.date.day}のコピー？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","suggestions":["コピー","キャンセル"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('ConfirmReservation2Record.interpret')
-        sts, jsonDict, morphs, selection = await self.decode_response()
-        if sts != SUCCESS:
+        sts, json_dict, morphs, selection = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
 
         if any(['コピー' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("コピーします",0)
-            url = 'https://npogenkikai.net/reservation2record.php?date=' + f'{self.date.year}/{self.date.month}/{self.date.day}'
+            url = 'https://npogenkikai.net/reservation2record.php?date=' + \
+                  f'{self.date.year}/{self.date.month}/{self.date.day}'
             req = urllib.request.Request(url)
             with urllib.request.urlopen(req) as resp:
-                respond = resp.read()  # just ignore returned text
+                _ = resp.read()  # just ignore returned text
             # await sendGetRequest(url)
             await self.feedback("コピーしました", 0)
         elif any(['キャンセル' in m['surface'] for m in morphs]) or selection == '2':
             await self.feedback("キャンセルします",0)
         return None
 
+
 class UpdateRecord(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.parent = parent
         self.visit = parent.visit
         self.operation = parent.operation
 
     async def prompt(self):
         print('UpdateRecord.prompt')
-        SPEECH = '来場記録を'
-        TEXT = ''
-        DISPLAY = ''
+        speech = '来場記録を'
+        text = ''
+        display = ''
         if self.operation == "add":
-            SPEECH += '追加する'
+            speech += '追加する'
         else:
-            SPEECH += '削除する'
-        if self.visit.date == None:
-            SPEECH += '日にち'
-            TEXT += '日にち'
+            speech += '削除する'
+        if self.visit.date is None:
+            speech += '日にち'
+            text += '日にち'
         else:
-            DISPLAY = f'{self.visit.date.month}月{self.visit.date.day}日'
-        # if self.reservation.member.id == '':
-        if self.visit.memberList == []:
-            SPEECH += '、氏名'
-            if TEXT != '':
-                TEXT += '、氏名'
+            display = f'{self.visit.date.month}月{self.visit.date.day}日'
+        # if self.reservation.member.userid == '':
+        if not self.visit.memberlist:
+            speech += '、氏名'
+            if text != '':
+                text += '、氏名'
             else:
-                TEXT = '氏名'
+                text = '氏名'
         else:
-            DISPLAY = ''
-            for member in self.visit.memberList:
-                DISPLAY += f' {member.sei}{member.mei}様'
-        SPEECH += 'をご指定ください。'
-        TEXT += '？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}","show":"{DISPLAY}"' + '}'
-        await self.sendStr(jsonText)
+            display = ''
+            for member in self.visit.memberlist:
+                display += f' {member.sei}{member.mei}様'
+        speech += 'をご指定ください。'
+        text += '？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show":"{display}"' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('UpdateRecord.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts != SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
 
-        if self.visit.date == None: # date maybe already filled
+        if self.visit.date is None:  # date maybe already filled
             dt = AskDate(self.user, self)
             self.visit.date = await dt.parse_date(morphs)
             while self.visit.date is None:
                 self.visit.date = await self.prompt_and_interpret(dt)
-                if dt.error == ERR_TIMEOUT:
+                if dt.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
                     return None
         nm = AskName(self.user, self)
-        self.visit.memberList = await nm.parse_name(morphs)
-        while self.visit.memberList == []:
-            self.visit.memberList = await self.prompt_and_interpret(nm)
-            if nm.error == ERR_TIMEOUT:
+        self.visit.memberlist = await nm.parse_name(morphs)
+        while not self.visit.memberlist:
+            self.visit.memberlist = await self.prompt_and_interpret(nm)
+            if nm.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
                 return None
-            if self.error == ERR_TIMEOUT: return None
+            if self.error == com.ERR_TIMEOUT: return None
 
         return ConfirmRecord(self.user, self)
 
 
 class ConfirmRecord(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.parent = parent
         self.visit = parent.visit
         self.operation = parent.operation
@@ -1564,16 +1551,17 @@ class ConfirmRecord(Scene):
     async def prompt(self):
         print('ConfirmRecord.prompt')
         if self.operation == "add":
-            SPEECH = '以下を追加しますか？'
-            TEXT = '追加：'
+            speech = '以下を追加しますか？'
+            text = '追加：'
         else:
-            SPEECH = '以下を削除しますか？'
-            TEXT = '削除：'
-        TEXT += f'{self.visit.date.month}月{self.visit.date.day}日'
-        for member in self.visit.memberList:
-            TEXT += f',{member.sei}{member.mei}様'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}", "suggestions":["はい","いいえ","日付修正","人名修正"]' + '}'
-        await self.sendStr(jsonText)
+            speech = '以下を削除しますか？'
+            text = '削除：'
+        text += f'{self.visit.date.month}月{self.visit.date.day}日'
+        for member in self.visit.memberlist:
+            text += f',{member.sei}{member.mei}様'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}", ' +\
+                    '"suggestions":["はい","いいえ","日付修正","人名修正"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
@@ -1583,20 +1571,20 @@ class ConfirmRecord(Scene):
             await self.feedback("終了します", 1)
             return None
 
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts != SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
 
         if selection == '1' or any(['はい' in m['surface'] for m in morphs]):
-            return await self.actUpdateRecord()
+            return await self.act_update_record()
         elif selection == '2' or any(['いいえ' in m['surface'] for m in morphs]):
             await self.feedback("キャンセルします", 0)
             return PostRecord(self.user, self)
         elif selection == '3' or any(['日付' in m['surface'] for m in morphs]):
             await self.feedback("戻ります", 0)
             self.parent.visit = Visit()
-            self.parent.visit.memberList = self.visit.memberList
+            self.parent.visit.memberlist = self.visit.memberlist
             return self.parent
         elif selection == '4' or any(['人名' in m['surface'] for m in morphs]):
             await self.feedback("戻ります", 0)
@@ -1608,35 +1596,35 @@ class ConfirmRecord(Scene):
             self.counter += 1
             return self
 
-    async def actUpdateRecord(self):
+    async def act_update_record(self):
         print('actUpdateRecord')
         date = f'{self.visit.date.year}/{self.visit.date.month}/{self.visit.date.day}'
         url = "https://npogenkikai.net/record.php"
-        # json = {"command": self.operation,"id": self.reservation.member.id,"date": date,"ampm": self.reservation.date.ampm}
-        idList = [m.id for m in self.visit.memberList]
-        json = {"command": self.operation, "ids": idList, "date": date}
-        th = threading.Thread(target=sendJson_sync, args=([url, json]))
+        id_list = [m.id for m in self.visit.memberlist]
+        th = threading.Thread(target=send_json_sync,
+                              args=([url, {"command": self.operation, "ids": id_list, "date": date}]))
         th.start()
         return PostRecord(self.user, self)
 
+
 class PostRecord(Scene):
 
-    def __init__(self, user, parent):
-        super().__init__(user)
+    def __init__(self, usr, parent):
+        super().__init__(usr)
         self.visit = parent.visit
 
     async def prompt(self):
         print('PostRecord.prompt')
-        SPEECH = '同じ日時枠で来場記録作業を続けますか？'
-        TEXT = '同じ時間枠？終了？'
-        jsonText = '{' + f'"speech":"{SPEECH}","text":"{TEXT}"' + ',"suggestions":["同一時間枠","終了"]' + '}'
-        await self.sendStr(jsonText)
+        speech = '同じ日時枠で来場記録作業を続けますか？'
+        text = '同じ時間枠？終了？'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}"' + ',"suggestions":["同一時間枠","終了"]' + '}'
+        await self.send_str(json_text)
         return
 
     async def interpret(self):
         print('PostRecord.interpret')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts != SUCCESS:
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
             return None
         if any([m['surface'].startswith('同') for m in morphs]) or any(
@@ -1649,47 +1637,55 @@ class PostRecord(Scene):
             await self.feedback("終了します", 1)
             return None
 
-class ViewInlineFrame(Scene):
 
-    def __init__(self, user, url):
-        super().__init__(user)
-        self.url = url
+# class ViewInlineFrame(Scene):
+#
+#     def __init__(self, usr, url):
+#         super().__init__(usr)
+#         self.url = url
+#
+#     async def prompt(self):
+#         print('ViewInlineFrame.prompt')
+#         jsonText = '{' + f'"view":"{self.url}", suggestions":["戻る","終了"]' + '}'
+#         return
+#
+#     async def interpret(self):
+#         print('ViewInlineFrame')
+#         sts, jsonDict, morphs, selection, intent = await self.decode_response()
+#         if sts != com.SUCCESS:
+#             await self.feedback("終了します", 1)
+#             return None
+#         if any([m['surface'].startswith('戻') for m in morphs]) or selection == 2:
+#             await self.feedback("戻ります", 0)
+#         else:
+#             await self.feedback("終了します", 1)
+#             return None
 
-    async def prompt(self):
-        print('ViewInlineFrame.prompt')
-        jsonText = '{' + f'"view":"{self.url}", suggestions":["戻る","終了"]' + '}'
-        return
-
-    async def interpret(self):
-        print('ViewInlineFrame')
-        sts, jsonDict, morphs, selection, intent = await self.decode_response()
-        if sts != SUCCESS:
-            await self.feedback("終了します", 1)
-            return None
-        if any([m['surface'].startswith('戻') for m in morphs]) or selection == 2:
-            await self.feedback("戻ります", 0)
-        else:
-            await self.feedback("終了します", 1)
-            return None
 
 class SeeYou(Scene):
+
     async def prompt(self):
         print('SeeYou.prompt')
+
     async def interpret(self):
         print('SeeYou.interpret')
-        SPEECH = 'またね'
-        TEXT = 'またね'
-        jsonText = '{' + f'"feedback":"{SPEECH}","text":"{TEXT}"'+'}'
-        await self.sendStr(jsonText)
+        speech = 'またね'
+        text = 'またね'
+        json_text = '{' + f'"feedback":"{speech}","text":"{text}"'+'}'
+        await self.send_str(json_text)
         await asyncio.sleep(2)
         #jsonText = '{' + f'"action":"finish"'+'}'
         #await self.sendStr(jsonText)
         return None
 
+
 async def close_websockets():
+    global user
+
+    #user: User
     # clean up client
     if user.ws is not None and not user.ws.closed:
-        await asyncio.sleep(1) # time to get 'finish' echo back log
+        await asyncio.sleep(1)  # time to get 'finish' echo back log
         await user.ws.close()
     print('user.close_websockets > Websocket connections closed')
 
@@ -1705,7 +1701,14 @@ def termination_handler(signal,frame):
     sys.exit(0)
 
 
-def main(userPort, org, role, invoker, childConn):
+DEBUG = True
+line_bot_api = None
+line_parser = None
+app = None
+user = None
+
+
+def main(user_port, org, role, invoker, child_conn):
 
     global line_parser
     global line_bot_api
@@ -1715,7 +1718,7 @@ def main(userPort, org, role, invoker, childConn):
     print('user is up and running')
     signal.signal(signal.SIGINT, termination_handler)
     signal.signal(signal.SIGTERM, termination_handler)
-    user = User(userPort, org, role, invoker, childConn)
+    user = User(user_port, org, role, invoker, child_conn)
     print(f'user main > user port:{user.wsPort},org:{user.org},role:{user.role},invoker:{user.invoker}')
 
     line_bot_api = LineBotApi(config.LINE_CHANNEL_ACCESS_TOKEN)
@@ -1770,5 +1773,3 @@ def main(userPort, org, role, invoker, childConn):
         print(f'>>>DIALOG HISTORY: {history}')
         # time.sleep(2) # for shutdown cor to execute
         # sys.exit(0)
-
-

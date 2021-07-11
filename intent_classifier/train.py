@@ -6,8 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-
-import config
+import com
 
 
 class IntentDataset(Dataset):
@@ -96,7 +95,7 @@ def draw(numEpochs, loss_train_list, loss_valid_list, accuracy_train_list, accur
 
 if __name__ == '__main__':
     szWV = 100
-    numINTENT = config.INTENT_MAX + 1
+    numINTENT = com.INTENT_MAX + 1
 
     torch.manual_seed(1)
     #device = torch.device('cuda')

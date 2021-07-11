@@ -25,31 +25,6 @@ RECVJSON_TIMEOUT = 30 #sec
 GC_INTERVAL = 60*15 # garbage collection runs
 PROCESS_TIMEOUT = 60*20 # kill process over this elapsed time
 
-INTENT_OTHERS = 0
-INTENT_HELP = INTENT_OTHERS + 1
-INTENT_YES = INTENT_HELP + 1
-INTENT_NO = INTENT_YES + 1
-INTENT_CANCEL = INTENT_NO + 1
-INTENT_RETRY = INTENT_CANCEL + 1
-INTENT_TEL = INTENT_RETRY + 1
-INTENT_SEND_LINE_MESSAGE = INTENT_TEL + 1
-INTENT_SEND_SHORT_MESSAGE = INTENT_SEND_LINE_MESSAGE + 1
-INTENT_MAX = INTENT_SEND_SHORT_MESSAGE
 
-# display string
-intents = {
-    INTENT_OTHERS:"others",
-    INTENT_HELP:"help",
-    INTENT_YES:"yes",
-    INTENT_NO: "no",
-    INTENT_CANCEL: "cancel",
-    INTENT_RETRY: "retry",
-    INTENT_TEL:"tel",
-    INTENT_SEND_LINE_MESSAGE:"send_line_message",
-    INTENT_SEND_SHORT_MESSAGE: "send_short_message",
-}
 
-# multiprocess? sibprocess?
-MP = True
-SP = False
 

@@ -16,12 +16,12 @@ DEBUG = True
 
 def sendJson(url,data):
     print(f'sendJson > {url}, {data}')
-    headers = {'Content-Type': 'application/json'}
+    headers = {'Content-Type': 'application/json_string'}
     req = urllib.request.Request(url, json.dumps(data).encode(), headers)
     with urllib.request.urlopen(req) as res:
         print('respose: ', res)
         json_contents = json.load(res)
-        print('json contents', json_contents)
+        print('json_string contents', json_contents)
         return json_contents
 
 def sendToLine(lineid, message):
@@ -34,7 +34,7 @@ def sendToLine(lineid, message):
         line_bot_api.push_message(config.LINE_ADMIN3_USERID, TextSendMessage(text=message))
         line_bot_api.push_message(config.LINE_ADMIN4_USERID, TextSendMessage(text=message))
 
-pdNames = pd.DataFrame(data=names.names, columns=["id","sei","seiyomi","mei","meiyomi","lineid"])
+pdNames = pd.DataFrame(data=names.names, columns=["userid","sei","seiyomi","mei","meiyomi","lineid"])
 
 if __name__ == '__main__':
     line_bot_api = LineBotApi(config.LINE_CHANNEL_ACCESS_TOKEN)
@@ -63,16 +63,16 @@ if __name__ == '__main__':
     sent = ''
     notsent = ''
     for r in idList:
-        id = r['id']
+        id = r['userid']
         lineid = ''
         nameStr = ''
-        json_contents = json.loads(pdNames[(pdNames['id'] == id)].to_json(orient="records", force_ascii=False))
+        json_contents = json.loads(pdNames[(pdNames['userid'] == id)].to_json(orient="records", force_ascii=False))
         if len(json_contents) == 1:
             name = json_contents[0]
             nameStr = name['sei'] + name['mei']
             lineid = name['lineid']
         elif len(json_contents) == 0:
-            name = sendJson("https://npogenkikai.net/id2name.php", {"id": id})
+            name = sendJson("https://npogenkikai.net/id2name.php", {"userid": id})
             nameStr = name['sei'] + name['mei']
             lineid = name['lineid']
         print(lineid, nameStr)

@@ -6,7 +6,7 @@ import config
 import ocr2record
 
 def ocr(image_file_name):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/satoyoshiharu/hmc-dialog-server/hmc-dialog-97e55e12dbdf.json"
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/satoyoshiharu/hmc-dialog-server/hmc-dialog-97e55e12dbdf.json_string"
     client = vision.ImageAnnotatorClient()
     with io.open(config.WORKING_DIR + 'record/' + image_file_name + '.jpg', 'rb') as image_file:
         content = image_file.read()

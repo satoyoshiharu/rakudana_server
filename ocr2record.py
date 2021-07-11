@@ -6,12 +6,12 @@ import json
 
 async def sendJson(url, data):
     print(f'sendJson > {url}, {data}')
-    headers = {'Content-Type': 'application/json'}
+    headers = {'Content-Type': 'application/json_string'}
     req = urllib.request.Request(url, json.dumps(data).encode(), headers)
     with urllib.request.urlopen(req) as res:
         print('respose: ', res)
         json_contents = json.load(res)
-        print('json contents', json_contents)
+        print('json_string contents', json_contents)
         return json_contents
 
 async def sendGetRequest(url):
@@ -50,10 +50,10 @@ def ocr2record(text):
                 print('error', json_contents['error'])
                 print(f'{sei}{mei} not found')
                 id = ''
-            elif len(json_contents) > 0 and 'id' in json_contents[0]:
-                id = json_contents[0]['id']
+            elif len(json_contents) > 0 and 'userid' in json_contents[0]:
+                id = json_contents[0]['userid']
             if id!='':
-                json_contents = sendGetRequest("https://npogenkikai.net/join.php?reg=app" + "&id=" + id)
+                json_contents = sendGetRequest("https://npogenkikai.net/join.php?reg=app" + "&userid=" + id)
                 if 'success' in json_contents[0]:
                     print(f'success: {id}')
                 else:

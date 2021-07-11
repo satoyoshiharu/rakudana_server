@@ -1,3 +1,4 @@
+import pandas as pd
 
 names = [
     ["A0001", "村田", "ムラタ", "慶子", "ケイコ", "Ufc60e681b482d59d3eeb1a24de4eec10"], #
@@ -60,3 +61,6 @@ names = [
     ["M0283", "松本", "マツモト", "鈴子", "スズコ", "U7c17c4d9adb27aa5557823ac8618395f"],
     ["M0291", "高橋", "タカハシ", "美琴", "ミコト", "U6eeff5edb4c7cf7e04cb853bd8740762"],
 ]
+
+nametable = pd.DataFrame(data=names, columns=["userid", "sei", "seiyomi", "mei", "meiyomi", "lineid"])
+
