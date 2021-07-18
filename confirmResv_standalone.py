@@ -57,13 +57,13 @@ if __name__ == '__main__':
     print(f'{cfm}')
     idList = sendJson("https://npogenkikai.net/reserve.php",
                             {"command": "listbytimeslot", "date": date, "ampm": "pm"})
-    print(f'idLIst: {idList}')
+    print(f'idList: {idList}')
     if len(idList) == 0: exit(0)
 
     sent = ''
     notsent = ''
     for r in idList:
-        id = r['userid']
+        id = r['id']
         lineid = ''
         nameStr = ''
         json_contents = json.loads(pdNames[(pdNames['userid'] == id)].to_json(orient="records", force_ascii=False))
@@ -72,7 +72,7 @@ if __name__ == '__main__':
             nameStr = name['sei'] + name['mei']
             lineid = name['lineid']
         elif len(json_contents) == 0:
-            name = sendJson("https://npogenkikai.net/id2name.php", {"userid": id})
+            name = sendJson("https://npogenkikai.net/id2name.php", {"id": id})
             nameStr = name['sei'] + name['mei']
             lineid = name['lineid']
         print(lineid, nameStr)

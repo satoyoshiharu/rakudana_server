@@ -65,9 +65,11 @@ class NER():
                 if i<maxI and 'pos' in morphs[i+1].keys() and morphs[i+1]['pos'] == '名詞固有名詞人名名*':
                     pn.mei = morphs[i+1]['base']
                     i += 1
+                print(f'NER.find_entity > Person {pn.sei}{pn.mei}')
                 self.entitylist.append(pn)
             elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞固有名詞人名名*':
                 pn = Person()
                 pn.mei = morphs[i]['base']
+                print(f'NER.find_entity > Person {pn.mei}')
                 self.entitylist.append(pn)
             i += 1

@@ -294,7 +294,15 @@ class Scene:
 
     async def decode_response(self):
         print('decode_response')
-        sts, json_dict = await recv_json(self.ws)
+
+        if config.VR_STAB_TEST:
+            print('VR_STAB_TEST')
+            await asyncio.sleep(1)
+            sts = com.SUCCESS
+            json_dict = {"recognized": "佐藤さんに電話"}
+        else:
+            sts, json_dict = await recv_json(self.ws)
+
         if sts != com.SUCCESS:
             return sts, None, None, None, None
         morphs = []
@@ -436,11 +444,13 @@ class Initial(Scene):
         # todo if the personal name is recorded in client phone, ask confirmation and directly dial it.
         if len(self.user.ner.entitylist) == 1 and isinstance(self.user.ner.entitylist[0], Person):
             name = self.user.ner.entitylist[0].sei + self.user.ner.entitylist[0].mei
+            print(f'act_make_call > name {name}')
+            name = urllib.parse.quote(name)
             url = f'apps://rakudana.com/client_app/make_call?contact={name}'
         else:
             url = 'apps://rakudana.com/client_app/make_call'
         json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
-        print(json_text)
+        print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
         return None
 
@@ -1249,7 +1259,8 @@ class SendReservationMessageS(Scene):
         )
         lst = f'{self.reservation.date.month}月{self.reservation.date.day}日{self.reservation.date.ampm}の予約:<br>'
         for r in self.idList:
-            userid = r['userid']
+            print(f'{r}')
+            userid = r['id']
             name_list = json.loads(
                 names.nametable[(names.nametable['userid'] == userid)]
                 .to_json(orient="records", force_ascii=False)
@@ -1259,7 +1270,7 @@ class SendReservationMessageS(Scene):
             if len(name_list) == 1:
                 name = name_list[0]
             elif len(name_list) == 0:
-                name = await send_json("https://npogenkikai.net/id2name.php", {"userid": userid})
+                name = await send_json("https://npogenkikai.net/id2name.php", {"id": userid})
                 print(f'id2name: {name}')
             name_str = name['sei'] + name['mei']
             lst += ' ' + name_str
@@ -1295,7 +1306,7 @@ class SendReservationMessageS(Scene):
         sent = ''
         notsent = ''
         for r in self.idList:
-            userid = r['userid']
+            userid = r['id']
             lineid = ''
             name_str = ''
             json_contents = json.loads(
@@ -1308,7 +1319,7 @@ class SendReservationMessageS(Scene):
                 lineid = name['lineid']
             elif len(json_contents) == 0:
                 #json_contents = await sendJson("https://npogenkikai.net/id2lineid.php",{"userid":userid})
-                name = await send_json("https://npogenkikai.net/id2name.php", {"userid": userid})
+                name = await send_json("https://npogenkikai.net/id2name.php", {"id": userid})
                 name_str = name['sei'] + name['mei']
                 lineid = name['lineid']
             print(lineid, name_str)

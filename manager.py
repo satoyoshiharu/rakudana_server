@@ -57,25 +57,29 @@ def lm(conn):
     global intent_classifier
 
     print('lm thread started')
-    while True:
-        req = conn.recv()
-        print(f'lm < {req}')
-        if req == 'finish$':
-            break
-        elif req[:4] == 'tag$':
-            res = tagger.parse(req[4:])
-            conn.send(res)
-        elif req[:7] == 'intent$':
-            input_data = torch.tensor(
-                create_training_data.embAvg(req[7:], tokenizer, wordvectors),
-                dtype=torch.float
-            )
-            intent_classifier.eval()
-            with torch.no_grad():
-                intent = torch.argmax(intent_classifier(torch.unsqueeze(input_data, 0))).item()
-            print(f'detect_intent> {com.intents[intent]}')
-            conn.send(str(intent))
-    print('lm thread ended')
+    try:
+        while True:
+            req = conn.recv()
+            print(f'lm < {req}')
+            if req == 'finish$':
+                break
+            elif req[:4] == 'tag$':
+                res = tagger.parse(req[4:])
+                conn.send(res)
+            elif req[:7] == 'intent$':
+                input_data = torch.tensor(
+                    create_training_data.embAvg(req[7:], tokenizer, wordvectors),
+                    dtype=torch.float
+                )
+                intent_classifier.eval()
+                with torch.no_grad():
+                    intent = torch.argmax(intent_classifier(torch.unsqueeze(input_data, 0))).item()
+                print(f'detect_intent> {com.intents[intent]}')
+                conn.send(str(intent))
+    except EOFError as e:
+        print(f'pipe killed: {e}')
+    finally:
+        print('lm thread ended')
 
 
 def collectGarbage():
@@ -188,6 +192,7 @@ async def http_handler(request):
                     role = 'member'
             if 'port' in request.rel_url.query:
                 p = int(request.rel_url.query['port'])
+                print(f'user port {p} is specified by client')
                 if usedPort(p):
                     return web.Response(content_type='text/html', text='failed')
                 else:

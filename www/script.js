@@ -79,7 +79,7 @@ function clear_backgroundColor() {
 
 function clear(id) {
     let obj = document.getElementById(id);
-    while (obj.firstChild) { obj.removeChild(obj.firstChild); }
+    while (obj != null && obj.firstChild != null) { obj.removeChild(obj.firstChild); }
     return obj;
 }
 
@@ -133,7 +133,7 @@ function show_mike_on() {
     let img = new Image();
     img.src = MIKE_ON_ICON;
     img.style = "display: block; margin: auto; background-color:#fffffc;";
-    mode.appendChild(img);
+    if (mode != null) mode.appendChild(img);
     //console.log(serializer.serializeToString(document.getElementById('container')));
     //force_redraw(document.getElementById('body'));
 }
@@ -153,7 +153,7 @@ function show_mike_off() {
     input.type = 'image';
     input.src = MIKE_OFF_ICON;
     input.setAttribute('onclick','enable_sr()');
-    mode.appendChild(input);
+    if (mode != null) mode.appendChild(input);
 }
 
 function grayout_button() {
@@ -444,7 +444,8 @@ function OnStartButton() {
         capability_ss = 1;
     };
     console.log(capability_ss);
-    if (!'SpeechRecognition' in window ||  typeof webkitSpeechRecognition === 'undefined') {
+    if (!'SpeechRecognition' in window ||  typeof webkitSpeechRecognition === 'undefined'
+        || location.protocol == 'http:') {
         //alert('Web Speech API には未対応です.');
         capability_sr = 0;
     } else {
