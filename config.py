@@ -1,11 +1,13 @@
+#CLOUD_INSTANCE = True
+CLOUD_INSTANCE = False
+
 #PROTOCOL = 'http'
 PROTOCOL = 'https'
 #WS_PROTOCOL = 'ws'
 WS_PROTOCOL = 'wss'
 
-CLOUD_INSTANCE = False
-
 VR_STAB_TEST = False
+#VR_STAB_TEST = True
 
 if not CLOUD_INSTANCE:
     HOST_EXTERNAL_IP = '192.168.0.19'

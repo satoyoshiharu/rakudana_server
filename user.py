@@ -46,6 +46,7 @@ class User:
         self.cookie = ''
         if self.invoker == 'rakudana_app':
             self.ner = NER()
+            self.app_conn_flag = False
 
     def cookie2id(self):
         print(f'cookie2id > {self.cookie}')
@@ -58,12 +59,14 @@ class User:
 
 
 async def app_handler(request):
+    global user
     print('app_handler...')
     ws = web.WebSocketResponse(timeout=60, max_msg_size=256)
     await ws.prepare(request)
     print('app_handler > Websocket connection ready')
     r = await ws.receive()
     print(f'app_handler > received: {r}')
+    user.app_conn_flag = True
     await ws.close()
     print('app_handler > ended')
     return
@@ -114,7 +117,12 @@ class ConversationModel:
     async def loop(self):
         json_text = '{"feedback":"開始します"}'
         await self.user.ws.send_str(json_text)
-        await asyncio.sleep(1)
+
+        if self.user.invoker=='rakudana_app':
+            while not self.user.app_conn_flag:
+                await asyncio.sleep(0.1)
+        else:
+            await asyncio.sleep(1)
 
         scene = Initial(self.user)
         self.user.dialog_history.append(scene)
@@ -280,15 +288,6 @@ class Scene:
 
     def detect_intent(self,text):
         print('detect_intent > ...')
-        # input = torch.tensor(
-        #     create_training_data.embAvg(text, tokenizer, wordvectors),
-        #     dtype=torch.float
-        # )
-        # intent_classifier.eval()
-        # with torch.no_grad():
-        #     intent = torch.argmax(intent_classifier(torch.unsqueeze(input, 0))).item()
-        # print(f'detect_intent> {config.intents[intent]}')
-        # return intent
         self.user.pipe.send('intent$' + text)
         return int(self.user.pipe.recv())
 
@@ -449,6 +448,7 @@ class Initial(Scene):
             url = f'apps://rakudana.com/client_app/make_call?contact={name}'
         else:
             url = 'apps://rakudana.com/client_app/make_call'
+
         json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
@@ -786,7 +786,7 @@ class AskName(Scene):
                     )
                     print(f'parse_name > with yomi, name2id returns {json_contents}')
                     # try to match ’竹内’
-                    if len(json_contents):
+                    if len(json_contents) == 0:
                         json_contents = await send_json(
                             "https://npogenkikai.net/name2id.php",
                             {"sei": sei, "meiyomi": meiyomi}
@@ -823,9 +823,9 @@ class AskName(Scene):
                                         multiple_mei + 'です。名前もご指定下さい。', 0)
                     self.error = com.INF_MULTIPLE_MATCH
                     return []
-                elif len(json_contents) == 1 and 'userid' in json_contents[0]:
+                elif len(json_contents) == 1 and 'id' in json_contents[0]:
                     person = Person(json_contents[0]['sei'], json_contents[0]['seiyomi'], json_contents[0]['mei'],
-                                    json_contents[0]['meiyomi'], json_contents[0]['userid'])
+                                    json_contents[0]['meiyomi'], json_contents[0]['id'])
                     await self.feedback(f'{person.seiyomi}{person.meiyomi}様ですね？',0)
                     personlist.append(person)
             idx += 1
@@ -842,7 +842,7 @@ class AskName(Scene):
         if sts != com.SUCCESS:
             return []
         if self.user.org == 'genkikai' and self.user.role == 'member' and \
-                self.user.device == 'iPhone':  # and not self.user.capabilnot self.user.capability_sr):
+                self.user.device == 'iPhone':  # and not self.user.capability_sr):
             print(f'interpret> button action detected: {selection}')
             # ["小川","小木曽","島田","久留","渡辺"]
             if selection == '1':

@@ -302,7 +302,7 @@ if __name__ == '__main__':
         manager.add_routes([
             # web.get('/www/', http_handler),
             web.get('/www/{file}', http_handler),
-            web.static('/www/', './www/'),
+            web.static('/', './'),
         ])
 
         manager.on_shutdown.append(on_shutdown)

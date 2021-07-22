@@ -62,5 +62,5 @@ names = [
     ["M0291", "高橋", "タカハシ", "美琴", "ミコト", "U6eeff5edb4c7cf7e04cb853bd8740762"],
 ]
 
-nametable = pd.DataFrame(data=names, columns=["userid", "sei", "seiyomi", "mei", "meiyomi", "lineid"])
+nametable = pd.DataFrame(data=names, columns=["id", "sei", "seiyomi", "mei", "meiyomi", "lineid"])
 
