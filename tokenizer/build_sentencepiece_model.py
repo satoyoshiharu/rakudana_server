@@ -43,3 +43,4 @@ spm.SentencePieceTrainer.Train(
 sp = spm.SentencePieceProcessor()
 sp.Load("sentencepiece.model")
 print(sp.EncodeAsPieces('今日は晴天です'))
+print(sp.EncodeAsPieces('110番'))

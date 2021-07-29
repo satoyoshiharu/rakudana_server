@@ -17,13 +17,14 @@ import sentencepiece as spm
 import logging
 from gensim.models.word2vec import Word2Vec, PathLineSentences
 import os
+import config
 
 DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 #
 # Build Word Vector Model
 #
-SIZE = 100
-MIN_COUNT = 100
+SIZE = config.WORD_VECTOR_SIZE
+MIN_COUNT = 50
 WINDOW = 5
 SG = 1
 #dirname = f"size{SIZE}-min_count{MIN_COUNT}-window{WINDOW}-sg{SG}"

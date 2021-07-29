@@ -30,6 +30,7 @@ class User:
     def __init__(self, port, org, role, invoker, pipe):
         self.wsPort = int(port)
         self.ws = None
+        self.appws = None
         self.app_data = False
         #self.monitor_info = None
         self.org = org
@@ -47,6 +48,9 @@ class User:
         if self.invoker == 'rakudana_app':
             self.ner = NER()
             self.app_conn_flag = False
+            self.app_close_flag = False
+            self.contacts = {}
+            self.callrecs = {}
 
     def cookie2id(self):
         print(f'cookie2id > {self.cookie}')
@@ -63,10 +67,29 @@ async def app_handler(request):
     print('app_handler...')
     ws = web.WebSocketResponse(timeout=60, max_msg_size=256)
     await ws.prepare(request)
+    user.appws = ws
     print('app_handler > Websocket connection ready')
     r = await ws.receive()
     print(f'app_handler > received: {r}')
     user.app_conn_flag = True
+
+    rs = r.split("\n")
+    contacts = rs[0]
+    callrecs = rs[1]
+    for rec in contacts.split(","):
+        if len(rec)>0:
+            elms = rec.split(":")
+            user.contacts[elms[0]] = elms[1]
+    print(f"app_handler > contacts: {user.contacts}")
+    for rec in callrecs.split(","):
+        if len(rec)>0:
+            elms = rec.split(":")
+            user.callrecs[elms[0]] = elms[1]
+    print(f"app_handler > call recs: {user.callrecs}")
+
+    while not user.app_close_flag:
+        await asyncio.sleep(1)
+
     await ws.close()
     print('app_handler > ended')
     return
@@ -141,13 +164,17 @@ class ConversationModel:
                     self.user.pipe.send('finish$')
                     return
                 self.user.dialog_history.append(scene)
+
             except Exception as e:
                 # maybe timeout error
                 print(f'ConversationModel.loop > exception: {e}')
                 print(traceback.format_exc())
+
+            finally:
                 json_text = '{' + '"action":"finish"' + '}'
                 if not self.user.ws.closed:
                     await self.user.ws.send_str(json_text)
+                self.user.app_close_flag = True
                 return  # -> finish
 
 
@@ -271,6 +298,17 @@ class Scene:
         print(f'send_str > {json_string}')
         try:
             if not self.ws.closed: await self.ws.send_str(json_string)
+        except Exception as e:
+            print('sending > exception {}'.format(e))
+            print(traceback.format_exc())
+            #print(f'{user.dialog_history}')
+            exit(1)
+
+    async def send_str_to_app_websocket(self, string):
+        print(f'send_str_to_app_websocket > {string}')
+        try:
+            if not self.user.appws.closed:
+                await self.user.appws.send_str(string)
         except Exception as e:
             print('sending > exception {}'.format(e))
             print(traceback.format_exc())
@@ -438,16 +476,52 @@ class Initial(Scene):
         return self
 
     async def act_make_call(self):
+
+        def match(dict):
+            telnum = 0
+            if person.seiyomi in dict:
+                telnum = dict[person.seiyomi]
+            elif person.meiyomi in dict:
+                telnum = dict[person.meiyomi]
+            return telnum
+
         print('act_make_call')
-        # initially just pass personal name to client
-        # todo if the personal name is recorded in client phone, ask confirmation and directly dial it.
+
         if len(self.user.ner.entitylist) == 1 and isinstance(self.user.ner.entitylist[0], Person):
+            person = self.user.ner.entitylist[0]
+            print(f'act_make_call > person {person} named')
+
+            if len(self.user.contacts) > 0:
+                telnum = match(self.user.contacts)
+                if telnum != 0:
+                    print(f'act_make_call > person matched with one of contact buttoms {telnum}')
+                    return MakeCallToConfirm(self.user, person, telnum)
+
+            print(f'act_make_call > no match with contact buttoms')
+            if len(self.user.callrecs) > 0:
+                telnum = match(self.user.callrecs)
+                if telnum != 0:
+                    print(f'act_make_call > person matched with one of call records {telnum}')
+                    # ask confirmation to directly dial it, and show option to create shortcut button.
+                    return MakeCallTo(self.user, person, telnum)
+
+            # initially just pass personal name to client
+            print(f'act_make_call > match neither with contact buttons nor call records')
             name = self.user.ner.entitylist[0].sei + self.user.ner.entitylist[0].mei
             print(f'act_make_call > name {name}')
             name = urllib.parse.quote(name)
             url = f'apps://rakudana.com/client_app/make_call?contact={name}'
+
         else:
-            url = 'apps://rakudana.com/client_app/make_call'
+
+            if len(self.user.contacts) > 0:
+                telnum = match(self.user.contacts)
+                if telnum != 0:
+                    print(f'act_make_call > person matched with one of contact buttoms {telnum}')
+                    return MakeCallToContacts(self.user)
+            else:
+                print(f'act_make_call > no person named')
+                url = 'apps://rakudana.com/client_app/make_call'
 
         json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
@@ -458,14 +532,14 @@ class Initial(Scene):
         print(f'id2person>{userid}')
         if userid == '': return None
         json_contents = \
-            json.loads(names.nametable[(names.nametable['userid'] == userid)]
+            json.loads(names.nametable[(names.nametable['id'] == userid)]
                        .to_json(orient="records", force_ascii=False))
         print(f'id2person > cache returns {json_contents}')
         if len(json_contents) > 0:
             print(f'id2person > hit cache {json_contents}')
             json_contents = json_contents[0]
         else:
-            json_contents = await send_json("https://npogenkikai.net/id2name.php", {"userid": userid})
+            json_contents = await send_json("https://npogenkikai.net/id2name.php", {"id": userid})
             print(f'id2person > id2name returns {json_contents}')
         person = Person(json_contents['sei'], json_contents['seiyomi'],
                         json_contents['mei'], json_contents['meiyomi'],
@@ -595,6 +669,114 @@ class Secondary(Scene):
             self.counter += 1
             await asyncio.sleep(1)
             return self
+
+
+class MakeCallToConfirm(Scene):
+
+    def __init__(self, usr, person, number):
+        super().__init__(usr)
+        self.callto_person = person
+        self.callto_number = number
+
+    async def prompt(self):
+        # ask confirmation to directly dial it, and show option to create shortcut button.
+        print('MakeCallToConfirm.prompt')
+        speech = f'{self.callto_person.seiyomi}{self.callto_person.meiymi}様にお電話しますか？'
+        text = f'{self.callto_person.seiyomi}{self.callto_person.meiymi}様、番号：{self.callto_number}'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","suggestions":["呼出","別の人へ","キャンセル"]' + '}'
+        await self.send_str(json_text)
+        return
+
+    async def interpret(self):
+        print('MakeCallTo.interpret')
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
+            await self.feedback("終了します", 1)
+            return None
+        if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
+            url = f'tel://{self.callto_number}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
+            print(f'MakeCallTo > json_text: {json_text} -> browser')
+            await self.send_str(json_text)
+            return None
+        elif any(['別' in m['surface'] for m in morphs]) or selection == '2':
+            name = self.callto_person.seiyomi + self.callto_person.meiymi
+            url = f'apps://rakudana.com/client_app/make_call?contact={name}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
+            print(f'MakeCallTo > json_text: {json_text} -> browser')
+            await self.send_str(json_text)
+            return None
+        elif any(['キャンセル' in m['surface'] for m in morphs]) or selection == '3':
+            return None
+
+
+class MakeCallTo(Scene):
+
+    def __init__(self, usr, person, number):
+        super().__init__(usr)
+        self.callto_person = person
+        self.callto_number = number
+
+    async def prompt(self):
+        # ask confirmation to directly dial it, and show option to create shortcut button.
+        print('MakeCallTo.prompt')
+        speech = f'{self.callto_person.seiyomi}{self.callto_person.meiymi}様にお電話しますか？ この連絡先を登録もできます。'
+        text = f'{self.callto_person.seiyomi}{self.callto_person.meiymi}様、番号：{self.callto_number}'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","suggestions":["呼出","別の人へ","登録","キャンセル"]' + '}'
+        await self.send_str(json_text)
+        return
+
+    async def interpret(self):
+        print('MakeCallTo.interpret')
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
+            await self.feedback("終了します", 1)
+            return None
+        if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
+            url = f'tel://{self.callto_number}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
+            print(f'MakeCallTo > json_text: {json_text} -> browser')
+            await self.send_str(json_text)
+            return None
+        elif any(['別' in m['surface'] for m in morphs]) or selection == '2':
+            name = self.callto_person.seiyomi + self.callto_person.meiymi
+            url = f'apps://rakudana.com/client_app/make_call?contact={name}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
+            print(f'MakeCallTo > json_text: {json_text} -> browser')
+            await self.send_str(json_text)
+            return None
+        elif any(['登録' in m['surface'] for m in morphs]) or selection == '3':
+            # record the contact
+            self.user.contacts[self.callto_person] = self.callto_number
+            await self.send_str_to_app_websocke("," + self.callto_person + ":" + self.callto_number)
+            # show contact buttons
+            return MakeCallToContacts(self.user, self.callto_person, self.callto_number)
+
+
+class MakeCallToContacts(Scene):
+
+    async def prompt(self):
+        # show contact list to push.
+        print('MakeCallToContacts.prompt')
+        speech = f'相手のボタンを押して下さい。'
+
+        #send contact list. Browser will draw their buttons
+        contacts = "contacts:"
+        for k, n in self.user.contacts.items():
+            contacts.append("," + k + ":" + n)
+
+        json_text = '{' + f'"speech":"{speech}","contacts":"{contacts}","suggestions":["別の人へ","キャンセル"]' + '}'
+        await self.send_str(json_text)
+        return
+
+    async def interpret(self):
+        print('MakeCallToContacts.interpret')
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
+            await self.feedback("終了します", 1)
+            return None
+        # todo handle functional buttons
+        # contact buttons invoke tel directly in browser
 
 
 class SendShortMessageInput(Scene):
@@ -1262,7 +1444,7 @@ class SendReservationMessageS(Scene):
             print(f'{r}')
             userid = r['id']
             name_list = json.loads(
-                names.nametable[(names.nametable['userid'] == userid)]
+                names.nametable[(names.nametable['id'] == userid)]
                 .to_json(orient="records", force_ascii=False)
             )
             print(f'cache: {name_list}')
@@ -1310,7 +1492,7 @@ class SendReservationMessageS(Scene):
             lineid = ''
             name_str = ''
             json_contents = json.loads(
-                names.nametable[(names.nametable['userid'] == userid)]
+                names.nametable[(names.nametable['id'] == userid)]
                 .to_json(orient="records", force_ascii=False)
             )
             if len(json_contents) == 1:

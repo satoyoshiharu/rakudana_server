@@ -34,6 +34,8 @@ def init_languagemodel():
     tagger = MeCab.Tagger(r"-u ./user.dic -d /var/lib/mecab/dic/ipadic-utf8/")
     print(f'tagger type: {type(tagger)}')
     tagger.parse('私')  # preload dictionary
+    tagger.parse('110番')  # preload dictionary
+    tagger.parse('090-2935-5792')  # preload dictionary
 
     tokenizer = spm.SentencePieceProcessor()
     tokenizer.Load("./tokenizer/sentencepiece.model")
@@ -42,7 +44,7 @@ def init_languagemodel():
     wordvectors = KeyedVectors.load('./intent_classifier/wv.model')
     print(f'word vector loaded: {type(wordvectors)}')
 
-    szWV = 100
+    szWV = config.WORD_VECTOR_SIZE
     numINTENT = com.INTENT_MAX + 1
     intent_classifier = train.Net(szWV, numINTENT)  # .to(device)
     intent_classifier.load_state_dict(torch.load('./intent_classifier/intent_classifier.model'))
@@ -68,7 +70,7 @@ def lm(conn):
                 conn.send(res)
             elif req[:7] == 'intent$':
                 input_data = torch.tensor(
-                    create_training_data.embAvg(req[7:], tokenizer, wordvectors),
+                    create_training_data.embSum(req[7:], tokenizer, wordvectors),
                     dtype=torch.float
                 )
                 intent_classifier.eval()

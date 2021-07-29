@@ -48,6 +48,12 @@ class Visit(Entity):
         self.memberlist = []
 
 
+class Digits(Entity):
+    def __init__(self):
+        super().__init__()
+        self.value = 0
+
+
 class NER():
 
     def __init__(self):

@@ -26,11 +26,18 @@ if __name__ == "__main__":
             ]
             contact = f'{random.choice(contactNames)}{random.choice(SUFFIX)}{random.choice(OBJ_MARKER)}'
             mood = f'{random.choice(MODE)}'
+            number = random.choice(
+                [str(random.randrange(1000)) + str(random.randrange(1000)) + str(random.randrange(1000)),
+                 str(random.randrange(1000)) + '-' + str(random.randrange(1000)) + '-' + str(random.randrange(1000)),
+                 ])
             f.write(f'{mood}{random.choice(TEL_INTENT)}\n')
             f.write(f'{mood}{contact}{random.choice(TEL_INTENT)}\n')
+            f.write(f'{mood}{number}に{random.choice(TEL_INTENT)}\n')
             f.write(f'{mood}{random.choice(TEL_INTENT)}、{contact}\n')
             f.write(f'{contact}{mood}{random.choice(TEL_INTENT)}\n')
+            f.write(f'{number}{mood}{random.choice(TEL_INTENT)}\n')
             f.write(f'{random.choice(TEL_INTENT)}、{mood}、{contact}\n')
+            f.write(f'{random.choice(TEL_INTENT)}、{mood}、{number}\n')
 
 
 

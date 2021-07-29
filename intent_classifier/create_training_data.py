@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 import sentencepiece as spm
 from gensim.models import Word2Vec, KeyedVectors
 import com
+import config
 
 def strip_spacemark(inputtokenlist):
   # print(inputtokenlist)
@@ -22,9 +23,22 @@ def embAvg(text, tokenizer, wvmodel):
   #print(f'tokens: {tokens}')
   em = np.array([wvmodel[w] for w in tokens if w in wvmodel])
   if len(em)==0:
-    em = np.zeros(100)
+    em = np.zeros(config.WORD_VECTOR_SIZE)
   else:
     em = np.mean(em, axis=0)
+  #print(f'mean: {em}')
+  return em
+
+def embSum(text, tokenizer, wvmodel):
+  #global model
+  #print(f'text: {text}')
+  tokens = strip_spacemark(tokenizer.EncodeAsPieces(text))
+  #print(f'tokens: {tokens}')
+  em = np.array([wvmodel[w] for w in tokens if w in wvmodel])
+  if len(em)==0:
+    em = np.zeros(config.WORD_VECTOR_SIZE)
+  else:
+    em = np.sum(em, axis=0)
   #print(f'mean: {em}')
   return em
 
@@ -87,6 +101,16 @@ if __name__ == '__main__':
   df_tel = df_tel[df_tel['SENTENCE']!='']
   df_tel['INTENT'] = com.INTENT_TEL
 
+  exec(open('gen_police_call.py').read())
+  df_call_police = pd.read_csv('call_police.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_call_police = df_call_police[df_call_police['SENTENCE']!='']
+  df_call_police['INTENT'] = com.INTENT_CALL_POLICE
+
+  exec(open('gen_emergency_call.py').read())
+  df_call_emergency = pd.read_csv('call_emergency.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_call_emrrgency = df_call_emergency[df_call_emergency['SENTENCE']!='']
+  df_call_emergency['INTENT'] = com.INTENT_CALL_EMERGENCY
+
   exec(open('gen_send_line_message.py').read())
   df_send_line_message = pd.read_csv('send_line_message.txt', header=None, sep='\t', names=['SENTENCE'])
   df_send_line_message = df_send_line_message[df_send_line_message['SENTENCE']!='']
@@ -99,11 +123,13 @@ if __name__ == '__main__':
 
   os.chdir(CUR_DIR)
 
-  df = pd.concat([df_others,df_help,df_yes,df_no,df_cancel,df_retry,df_tel,df_send_line_message,df_send_short_message])
+  df = pd.concat([df_others,df_help,df_yes,df_no,df_cancel,df_retry,
+                  df_tel,df_call_police,df_call_emergency,
+                  df_send_line_message,df_send_short_message])
   print(f"df:{df.shape}")
   labels = df['INTENT'].reset_index()
   labels = labels['INTENT']
-  vects = pd.DataFrame([embAvg(text, sp, model) for text in df['SENTENCE']])
+  vects = pd.DataFrame([embSum(text, sp, model) for text in df['SENTENCE']])
   print(f'labels:{labels.shape}, vects:{vects.shape}')
   data = pd.concat([labels, vects], axis=1)
   #

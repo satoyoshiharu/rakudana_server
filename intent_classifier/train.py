@@ -7,6 +7,7 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import com
+import config
 
 
 class IntentDataset(Dataset):
@@ -17,14 +18,23 @@ class IntentDataset(Dataset):
 class Net(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
+        # self.fc1 = nn.Linear(input_size, 128)
+        # nn.init.kaiming_normal_(self.fc1.weight)
+        # self.fc2 = nn.Linear(128, 64)
+        # nn.init.kaiming_normal_(self.fc2.weight)
+        # self.fc3 = nn.Linear(64, output_size)
+        # nn.init.kaiming_normal_(self.fc3.weight)
+        # self.bn1 = nn.BatchNorm1d(128)
+        # self.bn2 = nn.BatchNorm1d(64)
         self.fc1 = nn.Linear(input_size, 64)
         nn.init.kaiming_normal_(self.fc1.weight)
         self.fc2 = nn.Linear(64, output_size)
         nn.init.kaiming_normal_(self.fc2.weight)
-        self.bn = nn.BatchNorm1d(64)
+        self.bn1 = nn.BatchNorm1d(64)
 
     def forward(self, x):
-        x = self.fc2(F.relu(self.bn(self.fc1(x))))
+        # x = self.fc3(F.relu(self.bn2(self.fc2(F.relu(self.bn1(self.fc1(x)))))))
+        x = self.fc2(F.relu(self.bn1(self.fc1(x))))
         return x
 
 class Measure():
@@ -83,25 +93,25 @@ def draw(numEpochs, loss_train_list, loss_valid_list, accuracy_train_list, accur
     plt.plot(range(numEpochs), loss_valid_list, label='loss_valid')
     plt.legend()
     plt.xlabel('epoch')
-    plt.show()
+    plt.show(block=False)
     plt.savefig('./loss.jpg')
     plt.figure()
     plt.plot(range(numEpochs), accuracy_train_list, label='accuracy_train')
     plt.plot(range(numEpochs), accuracy_valid_list, label='accuracy_valid')
     plt.legend()
     plt.xlabel('epoch')
-    plt.show()
+    plt.show(block=False)
     plt.savefig('./accuracy.jpg')
 
 if __name__ == '__main__':
-    szWV = 100
+    szWV = config.WORD_VECTOR_SIZE
     numINTENT = com.INTENT_MAX + 1
 
     torch.manual_seed(1)
     #device = torch.device('cuda')
     train_batch_size = 64#1024
 
-    numEpochs = 30
+    numEpochs = 10
     learning_rate = 1.0
 
     x_train = torch.tensor(pd.read_csv('train.vector.txt', sep='\t', header=None).to_numpy(), dtype=torch.float)

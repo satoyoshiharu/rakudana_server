@@ -5,27 +5,35 @@ import torch
 import com
 import train
 import create_training_data
+import config
 
 sp = spm.SentencePieceProcessor()
 sp.Load("../tokenizer/sentencepiece.model")
 
 wv = KeyedVectors.load('wv.model')
 
-szWV = 100
+szWV = config.WORD_VECTOR_SIZE
 numINTENT = com.INTENT_MAX + 1
 model = train.Net(szWV, numINTENT)#.to(device)
 model.load_state_dict(torch.load('./intent_classifier.model'))
 
-input1 = torch.tensor(create_training_data.embAvg('電話をかける',sp,wv), dtype=torch.float)
-input1_1 = torch.tensor(create_training_data.embAvg('電話かける',sp,wv), dtype=torch.float)
-input2 = torch.tensor(create_training_data.embAvg('LINEする',sp,wv), dtype=torch.float)
-input3 = torch.tensor(create_training_data.embAvg('メッセージ送る',sp,wv), dtype=torch.float)
-input4 = torch.tensor(create_training_data.embAvg('何ができますか',sp,wv), dtype=torch.float)
+def data(str):
+    return torch.tensor(create_training_data.embSum(str, sp, wv), dtype=torch.float)
+
+def eval(t):
+    return com.intents[torch.argmax(model(torch.unsqueeze(t,0))).item()]
+
 model.eval()
 with torch.no_grad():  # batch size is len(dataset_valid)
-    print(com.intents[torch.argmax(model(torch.unsqueeze(input1,0))).item()])
-    print(com.intents[torch.argmax(model(torch.unsqueeze(input1_1,0))).item()])
-    print(com.intents[torch.argmax(model(torch.unsqueeze(input2,0))).item()])
-    print(com.intents[torch.argmax(model(torch.unsqueeze(input3,0))).item()])
-    print(com.intents[torch.argmax(model(torch.unsqueeze(input4,0))).item()])
+    print('はい',eval(data('はい')))
+    print('いいえ',eval(data('いいえ')))
+    print('キャンセル',eval(data('キャンセル')))
+    print('やり直す',eval(data('やり直す')))
+    print('電話をかける',eval(data('電話をかける')))
+    print('110番に電話',eval(data('110番に電話')))
+    print('119番に電話する',eval(data('119番に電話する')))
+    print('メッセージ送る',eval(data('メッセージ送る')))
+    print('LINE送る',eval(data('LINE送る')))
+    print('何ができる？',eval(data('何ができる？')))
+
 
