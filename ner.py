@@ -78,4 +78,21 @@ class NER():
                 pn.mei = morphs[i]['base']
                 print(f'NER.find_entity > Person {pn.mei}')
                 self.entitylist.append(pn)
+            elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞数*****':
+                # capture 090-2935-5792 or 110
+                digit = Digits()
+                digit.value = morphs[i]['surface']
+                while True:
+                    if i < maxI and 'pos' in morphs[i + 1].keys() and morphs[i + 1]['pos'] == '名詞サ変接続*****' \
+                            and morphs[i + 1]['surface'] == '-':
+                        i += 1
+                    else:
+                        break
+                    if i < maxI and 'pos' in morphs[i + 1].keys() and morphs[i + 1]['pos'] == '名詞数*****':
+                        digit.value += morphs[i]['surface']
+                        i += 1
+                    else:
+                        break
+                print(f'NER.find_entity > Digits {digit.value}')
+                self.entitylist.append(digit)
             i += 1

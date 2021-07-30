@@ -1,7 +1,7 @@
 /*
 * Declarations of global variables
 */
-let DEBUG = false;
+let DEBUG = true;
 let ws;
 let logWs;
 let imageCounter;
@@ -89,12 +89,180 @@ function setUpper(pCol) {
     display_box.style = 'grid-row: 3/4; grid-column:' + pCol + '; background-color:#fffffc;';
 };
 
-function addAction(fragment, num, rPos, cPos) {
+function insertButton(cell, label, bg, i) {
+    let input = document.createElement('input');
+    input.type = 'button';
+    input.value = label;
+    input.id = 'Button'+i;
+    input.setAttribute('onclick','Button'+i+'()');
+    cell.appendChild(input);
+}
+
+//function addAction(fragment, num, rPos, cPos) {
+function addAction(fragment, num) {
     [box,cell] = newBox("action"+num.toString());
-    box.style = 'grid-row:' + rPos + '; grid-column:' + cPos + '; background-color:#fffffc;';
+    //box.style = 'grid-row:' + rPos + '; grid-column:' + cPos + '; background-color:#fffffc;';
+    box.style = 'background-color:#fffffc;';
     box.style += 'border-width:10pt;';
     insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
     fragment.appendChild(box);
+};
+
+function setActions(fragment, ctn, num) {
+    style = "display: grid; grid-template: "
+    switch (num) {
+    case 1:
+        //ctn.style += "grid-template-columns: 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
+        style += "15vh 10vh 35vh 30vh / 1fr;";
+        ctn.style = style;
+        setUpper('1/2');
+        //addAction(fragment, 1, '4/5', '1/2');
+        break;
+    case 2:
+        //ctn.style += "grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
+        style += "15vh 10vh 35vh 30vh / 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/3');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        break;
+    case 3:
+        //ctn.style += "grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;";
+        style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/3');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '5/6', '1/2');
+        break;
+    case 4:
+        //ctn.style += "grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;";
+        style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/3');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '5/6', '1/2');
+        //addAction(fragment, 4, '5/6', '2/3');
+        break;
+    case 5:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
+        style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr 1fr;"
+        ctn.style = style;
+        setUpper('1/4');
+        addAction(fragment, 1, '4/5', '1/2');
+        addAction(fragment, 2, '4/5', '2/3');
+        addAction(fragment, 3, '4/5', '3/4');
+        addAction(fragment, 4, '5/6', '1/2');
+        addAction(fragment, 5, '5/6', '2/3');
+        break;
+    case 6:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
+        style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/4');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '4/5', '3/4');
+        //addAction(fragment, 4, '5/6', '1/2');
+        //addAction(fragment, 5, '5/6', '2/3');
+        //addAction(fragment, 6, '5/6', '3/4');
+        break;
+    case 7:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
+        style += "grid-template: 15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/4');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '4/5', '3/4');
+        //addAction(fragment, 4, '5/6', '1/2');
+        //addAction(fragment, 5, '5/6', '2/3');
+        //addAction(fragment, 6, '5/6', '3/4');
+        //addAction(fragment, 7, '6/7', '1/2');
+        break;
+    case 8:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
+        style += "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/4');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '4/5', '3/4');
+        //addAction(fragment, 4, '5/6', '1/2');
+        //addAction(fragment, 5, '5/6', '2/3');
+        //addAction(fragment, 6, '5/6', '3/4');
+        //addAction(fragment, 7, '6/7', '1/2');
+        //addAction(fragment, 8, '6/7', '2/3');
+        break;
+    case 9:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
+        style += "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/4');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '4/5', '3/4');
+        //addAction(fragment, 4, '5/6', '1/2');
+        //addAction(fragment, 5, '5/6', '2/3');
+        //addAction(fragment, 6, '5/6', '3/4');
+        //addAction(fragment, 7, '6/7', '1/2');
+        //addAction(fragment, 8, '6/7', '2/3');
+        //addAction(fragment, 9, '6/7', '3/4');
+        break;
+    case 10:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
+        style += "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/4');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '4/5', '3/4');
+        //addAction(fragment, 4, '5/6', '1/2');
+        //addAction(fragment, 5, '5/6', '2/3');
+        //addAction(fragment, 6, '5/6', '3/4');
+        //addAction(fragment, 7, '6/7', '1/2');
+        //addAction(fragment, 8, '6/7', '2/3');
+        //addAction(fragment, 9, '6/7', '3/4');
+        //addAction(fragment, 10, '7/8', '1/2');
+        break;
+    case 11:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
+        style += "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/4');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '4/5', '3/4');
+        //addAction(fragment, 4, '5/6', '1/2');
+        //addAction(fragment, 5, '5/6', '2/3');
+        //addAction(fragment, 6, '5/6', '3/4');
+        //addAction(fragment, 7, '6/7', '1/2');
+        //addAction(fragment, 8, '6/7', '2/3');
+        //addAction(fragment, 9, '6/7', '3/4');
+        //addAction(fragment, 10, '7/8', '1/2');
+        //addAction(fragment, 11, '7/8', '2/3');
+        break;
+    case 12:
+        //ctn.style += "grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
+        style += "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+        ctn.style = style;
+        setUpper('1/4');
+        //addAction(fragment, 1, '4/5', '1/2');
+        //addAction(fragment, 2, '4/5', '2/3');
+        //addAction(fragment, 3, '4/5', '3/4');
+        //addAction(fragment, 4, '5/6', '1/2');
+        //addAction(fragment, 5, '5/6', '2/3');
+        //addAction(fragment, 6, '5/6', '3/4');
+        //addAction(fragment, 7, '6/7', '1/2');
+        //addAction(fragment, 8, '6/7', '2/3');
+        //addAction(fragment, 9, '6/7', '3/4');
+        //addAction(fragment, 10, '7/8', '1/2');
+        //addAction(fragment, 11, '7/8', '2/3');
+        //addAction(fragment, 12, '7/8', '3/4');
+        break;
+    };
+    for (i=1;i<=num;i++) addAction(fragment, i);
 };
 
 function newBox(name) {
@@ -106,24 +274,6 @@ function newBox(name) {
     box.id = name + "_box";
     box.appendChild(cell);
     return [box, cell];
-}
-
-function insertButton(cell, label, bg, i) {
-    let input = document.createElement('input');
-    input.type = 'button';
-    input.value = label;
-    input.id = 'Button'+i;
-    //if (bg!="") {
-    //    if (bg=="#fffffc") {
-    //        input.style = "width:90%; padding:10pt; font-size:3rem; background-color:" + bg + ";border:none";
-    //    } else {
-            input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;"; ;
-    //    }
-    //} else {
-    //    input.style = "width:90%; padding:10px; font-size:3rem; border:none";
-    //}
-    input.setAttribute('onclick','Button'+i+'()');
-    cell.appendChild(input);
 }
 
 function show_mike_on() {
@@ -418,7 +568,8 @@ async function start_recognition () {
 
     recognition.onerror = async function (e) {
         if (DEBUG) report_status('recognition.onerror...');
-        console.log('onerror');
+        let value = e.results[0][0].transcript;
+        console.log('onerror:'+value);
         recognition.abort();
         //if (!sr_active) enable_sr();
         //let data = {};
@@ -598,14 +749,6 @@ async function main() {
     }
     ws.onerror = async (e) => {
         console.log('main> web socket onerror...');
-        /*
-        m = 'お待ち下さい';
-        console.error(m, e);
-        let ctn = clear('container');
-        let [display_box, display_cell] = newBox("display");
-        display_cell.innerHTML = '<p>' + m + '</p>';
-        ctn.appendChild(display_box);
-        */
         setTimeout(OnStartButton(), 1000);
     }
     ws.onmessage = async (e) => {
@@ -646,161 +789,76 @@ async function main() {
                     img.style = "display: block; margin: auto; background-color:#fffffc;";
                     display_cell.appendChild(img);
                 };
-                if ('show' in json)
-                    display_cell.innerHTML='<p>'+json.show+'</p>';
-                /*if ('qrcode' in json) {
-                    new QRCode(display_cell, json.qrcode);
-                    if ('caption' in json) {
-                        let text = document.createElement('div');
-                        text.innerHTML = json['caption'];
-                        display_cell.appendChild(text);
-                    };
-                };*/
-
+                if ('show' in json) display_cell.innerHTML='<p>'+json.show+'</p>';
                 fragment.appendChild(display_box);
 
                 if ('suggestions' in json) {
                     console.log('main > suggestions: '+ json.suggestions);
-                    switch (json.suggestions.length) {
+                    num = json.suggestions.length;
+                    style = "display: grid; grid-template: ";
+                    switch (num) {
                     case 1:
-                        console.log('1 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
+                        style += "15vh 10vh 35vh 30vh / 1fr;";
+                        ctn.style = style;
                         setUpper('1/2');
-                        addAction(fragment, 1, '4/5', '1/2');
                         break;
                     case 2:
-                        console.log('2 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
+                        style += "15vh 10vh 35vh 30vh / 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/3');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
                         break;
                     case 3:
-                        console.log('3 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
+                        style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/3');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '5/6', '1/2');
                         break;
                     case 4:
-                        console.log('4 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
+                        style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/3');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '5/6', '1/2');
-                        addAction(fragment, 4, '5/6', '2/3');
                         break;
                     case 5:
-                        console.log('5 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
+                        style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr 1fr;"
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
                         break;
                     case 6:
-                        console.log('6 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
+                       style += "15vh 10vh 35vh 15vh 15vh / 1fr 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
                         break;
                     case 7:
-                        console.log('7 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
+                        style += "grid-template: 15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
                         break;
                     case 8:
-                        console.log('8 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
+                        style += "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
                         break;
                     case 9:
-                        console.log('9 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
+                        style += "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
                         break;
                     case 10:
-                        console.log('10 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
+                        style += "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
-                        addAction(fragment, 10, '7/8', '1/2');
                         break;
                     case 11:
-                        console.log('11 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
+                        style += "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
-                        addAction(fragment, 10, '7/8', '1/2');
-                        addAction(fragment, 11, '7/8', '2/3');
                         break;
                     case 12:
-                        console.log('12 suggestion');
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
+                        style += "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                        ctn.style = style;
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
-                        addAction(fragment, 10, '7/8', '1/2');
-                        addAction(fragment, 11, '7/8', '2/3');
-                        addAction(fragment, 12, '7/8', '3/4');
                         break;
-                    }
+                    };
+                    for (i=1;i<=num;i++) addAction(fragment, i);
                     button_enable = true;
                 }
                 else {
@@ -811,35 +869,7 @@ async function main() {
                     fragment.appendChild(mode_box);
                     fragment.appendChild(display_box);
                 }
-                /*
-                if ('gettext' in json) {
-                    ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;";
-                    setUpper('1/2');
-                    fragment.appendChild(message_box);
-                    fragment.appendChild(mode_box);
-                    fragment.appendChild(display_box);
-
-                    let [textbox_box, textbox_cell] = newBox("textbox");
-                    textbox_box.style = "grid-row: 4/5; grid-column: 1/2; background-color:#fffffc;";
-                    let input = document.createElement('input');
-                    input.type = 'url';
-                    input.id = 'textarea0';
-                    input.style = "width:80%;padding:10px;font-size=1rem;";
-                    input.autofocus = true;
-                    textbox_cell.appendChild(input);
-                    fragment.appendChild(textbox_box);
-
-                    [action1_box,action1_cell] = newBox("action1");
-                    action1_box.style = "grid-row: 5/6; grid-column: 1/2; background-color:#fffffc;";
-                    let btn = document.createElement('input');
-                    btn.type = 'button';
-                    btn.value = '送信'
-                    btn.style = "width:80%;padding:10px;font-size:5rem;background-color:#c6d5ee7e;";
-                    btn.setAttribute('onclick','Button1()');
-                    action1_cell.appendChild(btn);
-                    fragment.appendChild(action1_box);
-                };
-                */
+                
                 enable_button();
                 ctn.appendChild(fragment);
 
