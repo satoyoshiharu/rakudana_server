@@ -97,6 +97,14 @@ function addAction(fragment, num, rPos, cPos) {
     fragment.appendChild(box);
 };
 
+function addAction2(fragment, num) {
+    [box,cell] = newBox("action"+num.toString());
+    box.style = 'background-color:#fffffc;';
+    box.style += 'border-width:10pt;';
+    insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
+    fragment.appendChild(box);
+};
+
 function newBox(name) {
     let cell = document.createElement('div');
     cell.classList.add('cell');
@@ -646,159 +654,72 @@ async function main() {
                     img.style = "display: block; margin: auto; background-color:#fffffc;";
                     display_cell.appendChild(img);
                 };
-                if ('show' in json)
-                    display_cell.innerHTML='<p>'+json.show+'</p>';
-                /*if ('qrcode' in json) {
-                    new QRCode(display_cell, json.qrcode);
-                    if ('caption' in json) {
-                        let text = document.createElement('div');
-                        text.innerHTML = json['caption'];
-                        display_cell.appendChild(text);
-                    };
-                };*/
-
+                if ('show' in json) display_cell.innerHTML='<p>'+json.show+'</p>';
                 fragment.appendChild(display_box);
 
                 if ('suggestions' in json) {
                     console.log('main > suggestions: '+ json.suggestions);
-                    switch (json.suggestions.length) {
+                    num = json.suggestions.length;
+                    switch (num) {
                     case 1:
-                        console.log('1 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
                         setUpper('1/2');
-                        addAction(fragment, 1, '4/5', '1/2');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 2:
-                        console.log('2 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
                         setUpper('1/3');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 3:
-                        console.log('3 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
                         setUpper('1/3');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '5/6', '1/2');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 4:
-                        console.log('4 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
                         setUpper('1/3');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '5/6', '1/2');
-                        addAction(fragment, 4, '5/6', '2/3');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 5:
-                        console.log('5 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 6:
-                        console.log('6 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 7:
-                        console.log('7 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 8:
-                        console.log('8 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 9:
-                        console.log('9 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 10:
-                        console.log('10 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
-                        addAction(fragment, 10, '7/8', '1/2');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 11:
-                        console.log('11 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
-                        addAction(fragment, 10, '7/8', '1/2');
-                        addAction(fragment, 11, '7/8', '2/3');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     case 12:
-                        console.log('12 suggestion');
                         ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
                         setUpper('1/4');
-                        addAction(fragment, 1, '4/5', '1/2');
-                        addAction(fragment, 2, '4/5', '2/3');
-                        addAction(fragment, 3, '4/5', '3/4');
-                        addAction(fragment, 4, '5/6', '1/2');
-                        addAction(fragment, 5, '5/6', '2/3');
-                        addAction(fragment, 6, '5/6', '3/4');
-                        addAction(fragment, 7, '6/7', '1/2');
-                        addAction(fragment, 8, '6/7', '2/3');
-                        addAction(fragment, 9, '6/7', '3/4');
-                        addAction(fragment, 10, '7/8', '1/2');
-                        addAction(fragment, 11, '7/8', '2/3');
-                        addAction(fragment, 12, '7/8', '3/4');
+                        for (i=1;i<=num;i++) addAction2(fragment, i);
                         break;
                     }
                     button_enable = true;
