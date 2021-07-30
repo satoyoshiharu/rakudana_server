@@ -668,7 +668,7 @@ async function main() {
                     fragment.appendChild(mode_box);
                     fragment.appendChild(display_box);
                 }
-                
+
                 enable_button();
                 ctn.appendChild(fragment);
 
