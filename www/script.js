@@ -89,15 +89,7 @@ function setUpper(pCol) {
     display_box.style = 'grid-row: 3/4; grid-column:' + pCol + '; background-color:#fffffc;';
 };
 
-function addAction(fragment, num, rPos, cPos) {
-    [box,cell] = newBox("action"+num.toString());
-    box.style = 'grid-row:' + rPos + '; grid-column:' + cPos + '; background-color:#fffffc;';
-    box.style += 'border-width:10pt;';
-    insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
-    fragment.appendChild(box);
-};
-
-function addAction2(fragment, num) {
+function addAction(fragment, num) {
     [box,cell] = newBox("action"+num.toString());
     box.style = 'background-color:#fffffc;';
     box.style += 'border-width:10pt;';
@@ -606,14 +598,6 @@ async function main() {
     }
     ws.onerror = async (e) => {
         console.log('main> web socket onerror...');
-        /*
-        m = 'お待ち下さい';
-        console.error(m, e);
-        let ctn = clear('container');
-        let [display_box, display_cell] = newBox("display");
-        display_cell.innerHTML = '<p>' + m + '</p>';
-        ctn.appendChild(display_box);
-        */
         setTimeout(OnStartButton(), 1000);
     }
     ws.onmessage = async (e) => {
@@ -659,69 +643,21 @@ async function main() {
 
                 if ('suggestions' in json) {
                     console.log('main > suggestions: '+ json.suggestions);
-                    num = json.suggestions.length;
-                    switch (num) {
-                    case 1:
-                        ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
-                        setUpper('1/2');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 2:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 30vh;";
-                        setUpper('1/3');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 3:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
-                        setUpper('1/3');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 4:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
-                        setUpper('1/3');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 5:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 6:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 7:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 8:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 9:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 20vh 15vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 10:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 11:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    case 12:
-                        ctn.style = "display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 5vh 15vh 15vh 15vh 15vh;"
-                        setUpper('1/4');
-                        for (i=1;i<=num;i++) addAction2(fragment, i);
-                        break;
-                    }
+                    var num = json.suggestions.length;
+
+                    if (num == 1) setUpper('1/2');
+                    else if (num < 5) setUpper('1/3');
+                    else setUpper('1/4');
+
+                    sty = "display: grid; grid-template: ";
+                    if (num == 1) ctn.style = sty + "15vh 10vh 35vh 30vh / 1fr;";
+                    else if (num == 2) ctn.style = sty + "15vh 10vh 35vh 30vh / 1fr 1fr;";
+                    else if (num < 5) ctn.style = sty + "15vh 10vh 35vh 15vh 15vh / 1fr 1fr;";
+                    else if (num < 7) ctn.style = sty + "15vh 10vh 35vh 15vh 15vh / 1fr 1fr 1fr;";
+                    else if (num < 10) ctn.style = sty + "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                    else ctn.style = sty + "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;"
+
+                    for (i=1;i<=num;i++) addAction(fragment, i);
                     button_enable = true;
                 }
                 else {
@@ -732,35 +668,7 @@ async function main() {
                     fragment.appendChild(mode_box);
                     fragment.appendChild(display_box);
                 }
-                /*
-                if ('gettext' in json) {
-                    ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 15vh 10vh 35vh 15vh 15vh;";
-                    setUpper('1/2');
-                    fragment.appendChild(message_box);
-                    fragment.appendChild(mode_box);
-                    fragment.appendChild(display_box);
-
-                    let [textbox_box, textbox_cell] = newBox("textbox");
-                    textbox_box.style = "grid-row: 4/5; grid-column: 1/2; background-color:#fffffc;";
-                    let input = document.createElement('input');
-                    input.type = 'url';
-                    input.id = 'textarea0';
-                    input.style = "width:80%;padding:10px;font-size=1rem;";
-                    input.autofocus = true;
-                    textbox_cell.appendChild(input);
-                    fragment.appendChild(textbox_box);
-
-                    [action1_box,action1_cell] = newBox("action1");
-                    action1_box.style = "grid-row: 5/6; grid-column: 1/2; background-color:#fffffc;";
-                    let btn = document.createElement('input');
-                    btn.type = 'button';
-                    btn.value = '送信'
-                    btn.style = "width:80%;padding:10px;font-size:5rem;background-color:#c6d5ee7e;";
-                    btn.setAttribute('onclick','Button1()');
-                    action1_cell.appendChild(btn);
-                    fragment.appendChild(action1_box);
-                };
-                */
+                
                 enable_button();
                 ctn.appendChild(fragment);
 
