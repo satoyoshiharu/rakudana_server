@@ -3,12 +3,12 @@
   "short_name": "げんきかい",
   "icons": [
     {
-      "src": "./image/logo_xxxhdpi_192x192_rounded.png",
+      "src": "../image/logo_xxxhdpi_192x192_rounded.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "./image/logo_512x512_rounded.png",
+      "src": "../image/logo_512x512_rounded.png",
       "sizes": "512x512",
       "type": "image/png"
     }

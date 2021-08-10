@@ -165,15 +165,20 @@ async def http_handler(request):
                 page = f.read()
             print("manager.http_handler -> client > service-worker.js")
             return web.Response(content_type='text/javascript', text=page)
-        elif page == 'manifest.json_string':
+        elif page == 'manifest.json':
             with open('./www/manifest.json', 'r') as f:
                 page = f.read()
-            print("manager.http_handler -> client > manifest.json_string")
+            print("manager.http_handler -> client > manifest.json")
             return web.Response(content_type='text/json_string', text=page)
         elif page == 'offline.html':
             with open('./www/offline.html', 'r') as f:
                 page = f.read()
             print("manager.http_handler -> client > offline.html")
+            return web.Response(content_type='text/html', text=page)
+        elif page == 'test.html':
+            with open('./www/test.html', 'r') as f:
+                page = f.read()
+            print("manager.http_handler -> client > test.html")
             return web.Response(content_type='text/html', text=page)
         elif page == 'index.html':
             # page == 'index.html':

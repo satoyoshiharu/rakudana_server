@@ -42,6 +42,30 @@ let action11_box = null;
 let action11_cell = null;
 let action12_box = null;
 let action12_cell = null;
+let contact1_box = null;
+let contact1_cell = null;
+let contact2_box = null;
+let contact2_cell = null;
+let contact3_box = null;
+let contact3_cell = null;
+let contact4_box = null;
+let contact4_cell = null;
+let contact5_box = null;
+let contact5_cell = null;
+let contact6_box = null;
+let contact6_cell = null;
+let contact7_box = null;
+let contact7_cell = null;
+let contact8_box = null;
+let contact8_cell = null;
+let contact9_box = null;
+let contact9_cell = null;
+let contact10_box = null;
+let contact10_cell = null;
+let contact11_box = null;
+let contact11_cell = null;
+let contact12_box = null;
+let contact12_cell = null;
 let serializer;
 let button_active = true;
 let sr_active = true;
@@ -51,6 +75,8 @@ let screen_width = 0;
 let screen_height = 0;
 let json = null;
 let ss_ongoing = []; // FIFO queue
+let contacts = [];
+let contact_flag = 0; //0 call, 1 delete
 
 let sr_timer = 0;
 let interval_timer;
@@ -83,20 +109,6 @@ function clear(id) {
     return obj;
 }
 
-function setUpper(pCol) {
-    message_box.style = 'grid-row: 1/2; grid-column:' + pCol + ';';
-    mode_box.style = 'grid-row: 2/3; grid-column:' + pCol + '; background-color:#fffffc;';
-    display_box.style = 'grid-row: 3/4; grid-column:' + pCol + '; background-color:#fffffc;';
-};
-
-function addAction(fragment, num) {
-    [box,cell] = newBox("action"+num.toString());
-    box.style = 'background-color:#fffffc;';
-    box.style += 'border-width:10pt;';
-    insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
-    fragment.appendChild(box);
-};
-
 function newBox(name) {
     let cell = document.createElement('div');
     cell.classList.add('cell');
@@ -106,24 +118,6 @@ function newBox(name) {
     box.id = name + "_box";
     box.appendChild(cell);
     return [box, cell];
-}
-
-function insertButton(cell, label, bg, i) {
-    let input = document.createElement('input');
-    input.type = 'button';
-    input.value = label;
-    input.id = 'Button'+i;
-    //if (bg!="") {
-    //    if (bg=="#fffffc") {
-    //        input.style = "width:90%; padding:10pt; font-size:3rem; background-color:" + bg + ";border:none";
-    //    } else {
-            input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;"; ;
-    //    }
-    //} else {
-    //    input.style = "width:90%; padding:10px; font-size:3rem; border:none";
-    //}
-    input.setAttribute('onclick','Button'+i+'()');
-    cell.appendChild(input);
 }
 
 function show_mike_on() {
@@ -461,6 +455,48 @@ function OnStartButton() {
     //window.close();
 };
 
+function setUpper(pCol) {
+    message_box.style = 'grid-row: 1/2; grid-column:' + pCol + ';';
+    mode_box.style = 'grid-row: 2/3; grid-column:' + pCol + '; background-color:#fffffc;';
+    display_box.style = 'grid-row: 3/4; grid-column:' + pCol + '; background-color:#fffffc;';
+};
+
+function addAction(fragment, num) {
+    [box,cell] = newBox("action"+num.toString());
+    box.style = 'background-color:#fffffc;';
+    box.style += 'border-width:10pt;';
+    insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
+    fragment.appendChild(box);
+};
+
+function addContact(fragment, num) {
+    [box,cell] = newBox("contact"+num.toString());
+    box.style = 'background-color:#fffffc;';
+    box.style += 'border-width:10pt;';
+    insertContact(cell,contacts[num-1],"#c6d5ee7e",num); // cell in the box
+    fragment.appendChild(box);
+};
+
+function insertButton(cell, label, bg, i) {
+    let input = document.createElement('input');
+    input.type = 'button';
+    input.value = label;
+    input.id = 'Button'+i;
+    input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;"; ;
+    input.setAttribute('onclick','Button'+i+'()');
+    cell.appendChild(input);
+}
+
+function insertContact(cell, contact, bg, i) {
+    let input = document.createElement('input');
+    input.type = 'button';
+    input.value = contacts[i-1]['name'];
+    input.id = 'Contact'+i;
+    input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;"; ;
+    input.setAttribute('onclick','Contact'+i+'()');
+    cell.appendChild(input);
+}
+
 function button_(num) {
     console.log('button_ > ' + num);
     if (!button_active) return;
@@ -491,6 +527,49 @@ function Button9() { button_(9); };
 function Button10() { button_(10); };
 function Button11() { button_(11); };
 function Button12() { button_(12); };
+
+function contact_button_(num) {
+    console.log('contact_button_ > ' + num);
+    if (!button_active) return;
+    //grayout_button();
+    b = document.getElementById('Contact'+num);
+    b.style.backgroundColor = "gray";
+    disable_button();
+    cancel_ss();
+    disable_sr();
+
+    if (contact_flag == 0) {
+        let ctn = clear('container');
+        ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr;"
+        let [display_box, display_cell] = newBox("display");
+        let a = document.createElement('a');
+        url = 'tel://' + contacts[num-1]['number'];
+        display_cell.innerHTML = '<a href="' + url + '">移動しないときはここをタップ</a>';
+        ctn.appendChild(display_box);
+        a.href = json.url;
+        a.click();
+    } else if (contact == 1) {
+        let data = {};
+        data['action'] = 'button';
+        data['selection'] = num.toString();
+        jsonData = JSON.stringify(data);
+        console.log(jsonData);
+        ws.send(jsonData)
+    }
+}
+
+function Contact1() { contact_button_(1); };
+function Contact2() { contact_button_(2); };
+function Contact3() { contact_button_(3); };
+function Contact4() { contact_button_(4); };
+function Contact5() { contact_button_(5); };
+function Contact6() { contact_button_(6); };
+function Contact7() { contact_button_(7); };
+function Contact8() { contact_button_(8); };
+function Contact9() { contact_button_(9); };
+function Contact10() { contact_button_(10); };
+function Contact11() { contact_button_(11); };
+function Contact12() { contact_button_(12); };
 
 /*
 * main and sub-routines
@@ -529,23 +608,21 @@ async function wait_for_ssfinish() {
 }
 
 async function leave_action(json) {
-    console.log('leave_action　>')
+    console.log('leave_action >')
     await wait_for_ssfinish();
     console.log('do');
 
     // On Safari, location.href doesn't work
     // http://wawawa12345.hatenablog.com/entry/2019/03/11/224034
-
-    //let ctn = document.getElementById('container');
-    let ctn = clear('container');
-    //let mode = clear('mode_cell');
-    //let ctn = clear('container');
-    ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr;"
+    let ctn = document.getElementById('container');
+    ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 100vh;"
     let [display_box, display_cell] = newBox("display");
-
-    let a = document.createElement('a');
+    display_cell.style = "text-align: center; vertical-align: middle";
     switch (json.action) {
     case 'goto_url':
+        console.log('leave_action > handles goto_url');
+        while (ctn != null && ctn.firstChild != null) { ctn.removeChild(ctn.firstChild); }
+        let a = document.createElement('a');
         display_cell.innerHTML = '<a href="' + json.url + '">移動しないときはここをタップ</a>';
         ctn.appendChild(display_box);
         a.href = json.url;
@@ -553,16 +630,22 @@ async function leave_action(json) {
         //location.href = json.url;
         break;
     case 'invoke_app':
-        display_cell.innerHTML='<a href="' + json.url + '">アプリ起動しないときはここをタップ</a>';
+        console.log('leave_action > handles invoke_action');
+        while (ctn != null && ctn.firstChild != null) { ctn.removeChild(ctn.firstChild); }
+        if ('guide' in json)
+            display_cell.innerHTML='<a href="' + json.url + '">' + json.guide + '</a>';
+        else
+            display_cell.innerHTML='<a href="' + json.url + '">ここを押して下さい</a>';
         ctn.appendChild(display_box)
-        a.href = json.url;
-        a.click();
-        //location.href = json.url;;
+        //a.href = json.url;
+        //a.click();
+        //location.href = json.url;
         break;
     //case 'send':
     //    Send();
     //    break;
     case 'finish':
+        console.log('leave_action > handles finish');
         //ws.send('done');
         ws.close();
         disable_button();
@@ -621,7 +704,6 @@ async function main() {
             {
                 // clear scene
                 let ctn = clear('container');
-
                 const fragment = document.createDocumentFragment();
 
                 [message_box, message_cell] = newBox("message");
@@ -631,44 +713,86 @@ async function main() {
                 [mode_box, mode_cell] = newBox("mode");
                 fragment.appendChild(mode_box);
 
-                [display_box, display_cell] = newBox("display");
-                if ('image' in json) {
-                    let img = new Image();
-                    img.src = json.image;
-                    img.style = "display: block; margin: auto; background-color:#fffffc;";
-                    display_cell.appendChild(img);
-                };
-                if ('show' in json) display_cell.innerHTML='<p>'+json.show+'</p>';
-                fragment.appendChild(display_box);
+                if ('contacts' in json || 'delete-from-contacts' in json)
+                {
+                    console.log('contacts layout');
 
-                if ('suggestions' in json) {
-                    console.log('main > suggestions: '+ json.suggestions);
-                    var num = json.suggestions.length;
+                    message_box.style = 'grid-row: 1/2; grid-column: 1/8;';
+                    mode_box.style = 'grid-row: 2/3; grid-column: 1/8; background-color:#fffffc;';
 
-                    if (num == 1) setUpper('1/2');
-                    else if (num < 5) setUpper('1/3');
-                    else setUpper('1/4');
+                    if ('suggestions' in json) {
+                        console.log('contacts > suggestions: '+ json.suggestions);
+                        var num = json.suggestions.length;
 
-                    sty = "display: grid; grid-template: ";
-                    if (num == 1) ctn.style = sty + "15vh 10vh 35vh 30vh / 1fr;";
-                    else if (num == 2) ctn.style = sty + "15vh 10vh 35vh 30vh / 1fr 1fr;";
-                    else if (num < 5) ctn.style = sty + "15vh 10vh 35vh 15vh 15vh / 1fr 1fr;";
-                    else if (num < 7) ctn.style = sty + "15vh 10vh 35vh 15vh 15vh / 1fr 1fr 1fr;";
-                    else if (num < 10) ctn.style = sty + "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
-                    else ctn.style = sty + "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;"
+                        sty = "display: grid; grid-template: ";
+                        ctn.style = sty + "grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 15vh; grid-auto-rows: 50px;";
+                        for (i=1;i<=num;i++) addAction(fragment, i);
+                        button_enable = true;
+                    };
 
-                    for (i=1;i<=num;i++) addAction(fragment, i);
-                    button_enable = true;
+                    var contacts_str;
+                    if ('contacts' in json) {
+                        contacts_str = json.contacts;
+                        contact_flag = 0;
+                    } else {
+                        contacts_str = json.contact_delete;
+                        contact_flag = 1;
+                    };
+                    var contactstrlist = split(',',contacts_str)
+                    contacts = [];
+                    for (i=0; i<contactstrlist.length; i++) {
+                        if (contactstrlist[i]=='') continue;
+                        var nn = split(':',contactstrlist[i]);
+                        contacts[i] = {};
+                        contacts[i]['name'] = nn[0];
+                        contacts[i]['number'] = nn[1];
+                        addContact(fragment, i);
+                    };
+
                 }
-                else {
-                    console.log('0 suggestion, voice only prompt');
-                    ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 15vh 10vh 70vh;";
-                    setUpper('1/2');
-                    fragment.appendChild(message_box);
-                    fragment.appendChild(mode_box);
+                else
+                {
+                    console.log('scene layout');
+
+                    [display_box, display_cell] = newBox("display");
+                    if ('image' in json) {
+                        let img = new Image();
+                        img.src = json.image;
+                        img.style = "display: block; margin: auto; background-color:#fffffc;";
+                        display_cell.appendChild(img);
+                    };
+                    if ('show' in json) display_cell.innerHTML='<p>'+json.show+'</p>';
                     fragment.appendChild(display_box);
-                }
 
+                    if ('suggestions' in json) {
+                        console.log('main > suggestions: '+ json.suggestions);
+                        var num = json.suggestions.length;
+
+                        if (num == 1) setUpper('1/2');
+                        else if (num < 5) setUpper('1/3');
+                        else setUpper('1/4');
+
+                        sty = "display: grid; grid-template: ";
+                        if (num == 1) ctn.style = sty + "15vh 10vh 35vh 30vh / 1fr;";
+                        else if (num == 2) ctn.style = sty + "15vh 10vh 35vh 30vh / 1fr 1fr;";
+                        else if (num < 5) ctn.style = sty + "15vh 10vh 35vh 15vh 15vh / 1fr 1fr;";
+                        else if (num < 7) ctn.style = sty + "15vh 10vh 35vh 15vh 15vh / 1fr 1fr 1fr;";
+                        else if (num < 10) ctn.style = sty + "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
+                        else ctn.style = sty + "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;"
+
+                        for (i=1;i<=num;i++) addAction(fragment, i);
+                        button_enable = true;
+                    }
+                    else {
+                        console.log('0 suggestion, voice only prompt');
+                        ctn.style = "display: grid; grid-template: 15vh 10vh 70vh / 1fr;";
+                        setUpper('1/2');
+                        fragment.appendChild(message_box);
+                        fragment.appendChild(mode_box);
+                        fragment.appendChild(display_box);
+                    }
+
+                }
                 enable_button();
                 ctn.appendChild(fragment);
 

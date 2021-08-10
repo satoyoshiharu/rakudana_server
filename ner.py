@@ -51,7 +51,7 @@ class Visit(Entity):
 class Digits(Entity):
     def __init__(self):
         super().__init__()
-        self.value = 0
+        self.value = ''
 
 
 class NER():
@@ -67,30 +67,29 @@ class NER():
             if i > maxI: break
             if 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞固有名詞人名姓*':
                 pn = Person()
-                pn.sei = morphs[i]['base']
+                pn.seiyomi = morphs[i]['base']
                 if i<maxI and 'pos' in morphs[i+1].keys() and morphs[i+1]['pos'] == '名詞固有名詞人名名*':
-                    pn.mei = morphs[i+1]['base']
+                    pn.meiyomi = morphs[i+1]['base']
                     i += 1
-                print(f'NER.find_entity > Person {pn.sei}{pn.mei}')
+                print(f'NER.find_entity > Person {pn.seiyomi}{pn.meiyomi}')
                 self.entitylist.append(pn)
             elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞固有名詞人名名*':
                 pn = Person()
-                pn.mei = morphs[i]['base']
-                print(f'NER.find_entity > Person {pn.mei}')
+                pn.meiyomi = morphs[i]['base']
+                print(f'NER.find_entity > Person {pn.meiyomi}')
                 self.entitylist.append(pn)
-            elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞数*****':
+            elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞数***':
                 # capture 090-2935-5792 or 110
                 digit = Digits()
                 digit.value = morphs[i]['surface']
                 while True:
-                    if i < maxI and 'pos' in morphs[i + 1].keys() and morphs[i + 1]['pos'] == '名詞サ変接続*****' \
-                            and morphs[i + 1]['surface'] == '-':
-                        i += 1
-                    else:
-                        break
-                    if i < maxI and 'pos' in morphs[i + 1].keys() and morphs[i + 1]['pos'] == '名詞数*****':
-                        digit.value += morphs[i]['surface']
-                        i += 1
+                    j = i + 1
+                    if j < maxI and 'pos' in morphs[j].keys() and morphs[j]['pos'] == '名詞サ変接続***' \
+                            and morphs[j]['surface'] == '-':
+                        j = j + 1
+                        if j < maxI and 'pos' in morphs[j].keys() and morphs[j]['pos'] == '名詞数***':
+                            digit.value += morphs[j]['surface']
+                            i = j
                     else:
                         break
                 print(f'NER.find_entity > Digits {digit.value}')
