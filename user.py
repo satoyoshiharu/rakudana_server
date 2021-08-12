@@ -493,18 +493,14 @@ class Initial(Scene):
         def match(person, datalist):
             print(f'act_make_call.match > person {person} vs datalist {datalist}')
             telnum = '0'
-            sei_match = [d for d in datalist if d[0] == person.seiyomi]
-            print(f'act_make_call.match > sei_match {sei_match}')
-            mei_match = [d for d in datalist if d[0] == person.meiyomi]
-            print(f'act_make_call.match > mei_match {mei_match}')
-            if len(sei_match) > 0 and sei_match != []:
-                telnum = sei_match[0][1]
-            elif len(mei_match) > 0 and mei_match != []:
-                telnum = mei_match[0][1]
+            match = [d for d in datalist if d[0] == person.name]
+            print(f'act_make_call.match > match {match}')
+            if len(match) > 0 and match != []:
+                telnum = match[0][1]
             return telnum
 
         def make_url_with_name():
-            name = self.user.ner.entitylist[0].seiyomi + self.user.ner.entitylist[0].meiyomi
+            name = self.user.ner.entitylist[0].name
             print(f'act_make_call > name {name}')
             name = urllib.parse.quote(name)
             return f'apps://rakudana.com/client_app/make_call?contact={name}'
@@ -524,7 +520,7 @@ class Initial(Scene):
             print(f'act_make_call > digits:{digits}')
             if len(persons) > 0:
                 person = persons[0]
-                print(f'act_make_call > person {person.seiyomi}{person.meiyomi} named')
+                print(f'act_make_call > person {person.name} named')
 
                 if len(self.user.contacts) > 0:
                     telnum = match(person, self.user.contacts)
@@ -779,14 +775,14 @@ class MakeCallToConfirm(Scene):
 
     def __init__(self, usr, person, number):
         super().__init__(usr)
-        self.callto_person = person
+        self.callto_name = person.name
         self.callto_number = number
 
     async def prompt(self):
         # ask confirmation to directly dial it, and show option to create shortcut button.
         print('MakeCallToConfirm.prompt')
-        speech = f'{self.callto_person.seiyomi}{self.callto_person.meiyomi}様にお電話しますか？'
-        text = f'{self.callto_person.seiyomi}{self.callto_person.meiyomi}様、番号：{self.callto_number}'
+        speech = f'{self.callto_name}様にお電話しますか？'
+        text = f'{self.callto_name}様、番号：{self.callto_number}'
         json_text = '{' + f'"speech":"{speech}","text":"{text}","suggestions":["呼出","別の人","キャンセル"]' + '}'
         await self.send_str(json_text)
         return
@@ -799,12 +795,12 @@ class MakeCallToConfirm(Scene):
             return None
         if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
             url = f'tel://{self.callto_number}'
-            json_text = '{' + f'"action":"invoke_app","url":"{url}",""guide":"ここを押して下さい。呼び出します"' + '}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。呼び出します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
             return None
         elif any(['別' in m['surface'] for m in morphs]) or selection == '2':
-            name = self.callto_person.seiyomi + self.callto_person.meiyomi
+            name = self.callto_name
             url = f'apps://rakudana.com/client_app/make_call?contact={name}'
             json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。連絡先から電話します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
@@ -849,14 +845,14 @@ class MakeCallToARecord(Scene):
 
     def __init__(self, usr, person, number):
         super().__init__(usr)
-        self.callto_person = person
+        self.callto_name = person.name
         self.callto_number = number
 
     async def prompt(self):
         # ask confirmation to directly dial it, and show option to create shortcut button.
         print('MakeCallTo.prompt')
-        speech = f'{self.callto_person.seiyomi}{self.callto_person.meiyomi}様、番号{self.callto_number}に、お電話しますか？ この連絡先を登録もできます。'
-        text = f'{self.callto_person.seiyomi}{self.callto_person.meiyomi}様、番号：{self.callto_number}'
+        speech = f'{self.callto_name}様、番号{self.callto_number}に、お電話しますか？ この連絡先を登録もできます。'
+        text = f'{self.callto_name}様、番号：{self.callto_number}'
         json_text = '{' + f'"speech":"{speech}","text":"{text}","suggestions":["呼出","別の人","登録","キャンセル"]' + '}'
         await self.send_str(json_text)
         return
@@ -869,12 +865,16 @@ class MakeCallToARecord(Scene):
             return None
         if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
             url = f'tel://{self.callto_number}'
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。{self.callto_person.seiyomi}{self.callto_person.meiyomi}様に電話します"' + '}'
+            json_text = \
+                '{' \
+                + f'"action":"invoke_app","url":"{url}",' \
+                  f'"guide":"ここを押して下さい。{self.callto_name}様に電話します"' \
+                + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
             return None
         elif any(['別' in m['surface'] for m in morphs]) or selection == '2':
-            name = self.callto_person.seiyomi + self.callto_person.meiyomi
+            name = self.callto_name
             url = f'apps://rakudana.com/client_app/make_call?contact={name}'
             json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。連絡先から電話します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
@@ -882,9 +882,9 @@ class MakeCallToARecord(Scene):
             return None
         elif any(['登録' in m['surface'] for m in morphs]) or selection == '3':
             # record the contact
-            self.user.contacts.append([self.callto_person,self.callto_number])
+            self.user.contacts.append([self.callto_name,self.callto_number])
             await self.send_str_to_app_websocket(
-                ','.join([ c[0].seiyomi + c[0].meiyomi + ':' + c[1] for c in self.user.contacts ])
+                ','.join([ c[0] + ':' + c[1] for c in self.user.contacts ])
             )
             # show contact buttons
             return MakeCallToContacts(self.user)
@@ -897,13 +897,14 @@ class MakeCallToContacts(Scene):
     async def prompt(self):
         # show contact list to push.
         print('MakeCallToContacts.prompt')
-        speech = f'相手のボタンを押してください。'
+        speech = f'登録連絡先です。相手のボタンを押してください。'
+        text = f'相手のボタンを押してください。'
 
         #send contact list. Browser will draw their buttons
-        contacts = "contacts:" + ','.join([c[0].seiyomi + c[0].meiyomi + ':' + c[1] for c in self.user.contacts])
+        contacts = ','.join([c[0] + ':' + c[1] for c in self.user.contacts])
 
         suggestions = '["別の人","連絡先削除","キャンセル"]'
-        json_text = '{' + f'"speech":"{speech}","contacts":"{contacts}","suggestions":{suggestions}' + '}'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","contacts":"{contacts}","suggestions":{suggestions}' + '}'
         await self.send_str(json_text)
         return
 
@@ -921,7 +922,7 @@ class MakeCallToContacts(Scene):
             await self.send_str(json_text)
             return None
         elif any(['削除' in m['surface'] for m in morphs]) or selection == '2':
-            print(f'MakeCallToContacts.interpret > edit selected')
+            print(f'MakeCallToContacts.interpret > delete selected')
             return DeleteContact(self.user, self)
         elif intent == com.INTENT_CANCEL or selection == '3':
             return None
@@ -935,18 +936,18 @@ class DeleteContact(Scene):
 
     async def prompt(self):
         # show contact list to push.
-        print('EditContacts.prompt')
+        print('DeleteContact.prompt')
         speech = f'削除する相手を押して下さい。'
+        text = f'削除する相手を押して下さい。'
 
         #send contact list. Browser will draw their buttons
-        contacts = "contacts:" + ','.join([c[0] + ':' + c[1] for c in self.user.contacts])
-
-        json_text = '{' + f'"speech":"{speech}","delete-from-contacts":"{contacts}", "suggestions":["キャンセル"]' + '}'
+        contacts = ','.join([c[0] + ':' + c[1] for c in self.user.contacts])
+        json_text = '{' + f'"speech":"{speech}", "text":"{text}", "delete":"{contacts}", "suggestions":["キャンセル"]' + '}'
         await self.send_str(json_text)
         return
 
     async def interpret(self):
-        print('EditContacts.interpret')
+        print('DeleteContact.interpret')
         # contact buttons invoke tel directly in browser, not return here
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
@@ -954,12 +955,13 @@ class DeleteContact(Scene):
             return None
         elif intent == com.INTENT_CANCEL or selection == '0':
             print(f'EditContacts.interpret > finish selected')
-            return self.parent(self.user)
+            return MakeCallToContacts(self.user)
         elif selection != "" and selection != '0':
             self.user.contacts.pop(int(selection) - 1)
             await self.send_str_to_app_websocket(
-                ','.join([ c[0].seiyomi + c[0].meiyomi +':' + c[1] for c in self.user.contacts ])
+                ','.join([ c[0] +':' + c[1] for c in self.user.contacts ])
             )
+            return MakeCallToContacts(self.user)
 
 
 class SendShortMessageInput(Scene):

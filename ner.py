@@ -14,6 +14,7 @@ class Person(Entity):
         self.meiyomi = meiyomi
         self.id = id
         self.lineid = lineid
+        self.name = self.seiyomi + self.meiyomi
 
 class Day(Entity):
     def __init__(self,year=None,month=None,day=None,ampm=None,hour=None,minutes=None):
@@ -71,12 +72,14 @@ class NER():
                 if i<maxI and 'pos' in morphs[i+1].keys() and morphs[i+1]['pos'] == '名詞固有名詞人名名*':
                     pn.meiyomi = morphs[i+1]['base']
                     i += 1
-                print(f'NER.find_entity > Person {pn.seiyomi}{pn.meiyomi}')
+                pn.name = pn.seiyomi + pn.meiyomi
+                print(f'NER.find_entity > Person {pn.name}')
                 self.entitylist.append(pn)
             elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞固有名詞人名名*':
                 pn = Person()
                 pn.meiyomi = morphs[i]['base']
-                print(f'NER.find_entity > Person {pn.meiyomi}')
+                pn.name = pn.meiyomi
+                print(f'NER.find_entity > Person {pn.name}')
                 self.entitylist.append(pn)
             elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞数***':
                 # capture 090-2935-5792 or 110

@@ -76,7 +76,6 @@ let screen_height = 0;
 let json = null;
 let ss_ongoing = []; // FIFO queue
 let contacts = [];
-let contact_flag = 0; //0 call, 1 delete
 
 let sr_timer = 0;
 let interval_timer;
@@ -107,9 +106,10 @@ function clear(id) {
     let obj = document.getElementById(id);
     while (obj != null && obj.firstChild != null) { obj.removeChild(obj.firstChild); }
     return obj;
-}
+};
 
 function newBox(name) {
+    //console.log('newBox > '+name)
     let cell = document.createElement('div');
     cell.classList.add('cell');
     cell.id = name + "_cell";
@@ -117,8 +117,9 @@ function newBox(name) {
     box.classList.add('box');
     box.id = name + "_box";
     box.appendChild(cell);
+    //console.log('newBox > ' + serializer.serializeToString(box));
     return [box, cell];
-}
+};
 
 function show_mike_on() {
     console.log('show_mike_on...');
@@ -130,7 +131,7 @@ function show_mike_on() {
     if (mode != null) mode.appendChild(img);
     //console.log(serializer.serializeToString(document.getElementById('container')));
     //force_redraw(document.getElementById('body'));
-}
+};
 
 function show_mike_off() {
     console.log('show_mike_off...');
@@ -148,7 +149,7 @@ function show_mike_off() {
     input.src = MIKE_OFF_ICON;
     input.setAttribute('onclick','enable_sr()');
     if (mode != null) mode.appendChild(input);
-}
+};
 
 function grayout_button() {
     for (i=1; i<=json.suggestions.length; i++) {
@@ -387,7 +388,7 @@ async function start_recognition () {
         console.log('recognition.onnomatch...');
         recognition.abort();
         if (sr_timer<10000) {
-            recognition.start();
+            //recognition.start();
         } else {
             disable_sr();
             let data = {};
@@ -463,17 +464,34 @@ function setUpper(pCol) {
 
 function addAction(fragment, num) {
     [box,cell] = newBox("action"+num.toString());
-    box.style = 'background-color:#fffffc;';
-    box.style += 'border-width:10pt;';
+    box.style = 'background-color:#fffffc; border-width:10pt;';
     insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
     fragment.appendChild(box);
 };
 
-function addContact(fragment, num) {
+function addContactAction(fragment, num, span) {
+    [box,cell] = newBox("action"+num.toString());
+    box.style = 'background-color:#fffffc; border-width:10pt; grid-row=3/4; grid-column: span ' + span.toString() + ';';
+    insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
+    fragment.appendChild(box);
+};
+
+function addContact(fragment, num, flag) {
+    console.log('addContact > num:' + num + ',flag:' + flag);
     [box,cell] = newBox("contact"+num.toString());
-    box.style = 'background-color:#fffffc;';
-    box.style += 'border-width:10pt;';
-    insertContact(cell,contacts[num-1],"#c6d5ee7e",num); // cell in the box
+    box.style = 'display: table; width: 100%; height: 100%; grid-column: 2/6; background-color:#fffffc; grid-row-gap: 5px;';
+    cell.style = "width:90%; font-size:3rem; background-color:" + "#c6d5ee7e" + "; border-width:10pt; cursol:pointer;";
+    if (flag) {
+        console.log('addContact > call case')
+        //let a = document.createElement('a');
+        url = 'tel://' + contacts[num-1]['number'];
+        cell.innerHTML = '<a href="' + url + '">' + contacts[num-1]['name'] + '</a>';
+        //console.log('addContact > ' + serializer.serializeToString(box));
+        //cell.appendChild(a);
+    } else {
+        console.log('addContact > delete-from-contacts case')
+        insertContact(cell,contacts[num-1],"#c6d5ee7e",num); // cell in the box
+    };
     fragment.appendChild(box);
 };
 
@@ -482,7 +500,7 @@ function insertButton(cell, label, bg, i) {
     input.type = 'button';
     input.value = label;
     input.id = 'Button'+i;
-    input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;"; ;
+    input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;";
     input.setAttribute('onclick','Button'+i+'()');
     cell.appendChild(input);
 }
@@ -490,9 +508,9 @@ function insertButton(cell, label, bg, i) {
 function insertContact(cell, contact, bg, i) {
     let input = document.createElement('input');
     input.type = 'button';
-    input.value = contacts[i-1]['name'];
+    input.value = contact['name'];
     input.id = 'Contact'+i;
-    input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;"; ;
+    input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;";
     input.setAttribute('onclick','Contact'+i+'()');
     cell.appendChild(input);
 }
@@ -538,24 +556,12 @@ function contact_button_(num) {
     cancel_ss();
     disable_sr();
 
-    if (contact_flag == 0) {
-        let ctn = clear('container');
-        ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr;"
-        let [display_box, display_cell] = newBox("display");
-        let a = document.createElement('a');
-        url = 'tel://' + contacts[num-1]['number'];
-        display_cell.innerHTML = '<a href="' + url + '">移動しないときはここをタップ</a>';
-        ctn.appendChild(display_box);
-        a.href = json.url;
-        a.click();
-    } else if (contact == 1) {
-        let data = {};
-        data['action'] = 'button';
-        data['selection'] = num.toString();
-        jsonData = JSON.stringify(data);
-        console.log(jsonData);
-        ws.send(jsonData)
-    }
+    let data = {};
+    data['action'] = 'button';
+    data['selection'] = num.toString();
+    jsonData = JSON.stringify(data);
+    console.log(jsonData);
+    ws.send(jsonData)
 }
 
 function Contact1() { contact_button_(1); };
@@ -617,7 +623,7 @@ async function leave_action(json) {
     let ctn = document.getElementById('container');
     ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 100vh;"
     let [display_box, display_cell] = newBox("display");
-    display_cell.style = "text-align: center; vertical-align: middle";
+    display_cell.style = "text-align: center; vertical-align: middle; width:90%; font-size:3rem;";
     switch (json.action) {
     case 'goto_url':
         console.log('leave_action > handles goto_url');
@@ -713,40 +719,43 @@ async function main() {
                 [mode_box, mode_cell] = newBox("mode");
                 fragment.appendChild(mode_box);
 
-                if ('contacts' in json || 'delete-from-contacts' in json)
+                if ('contacts' in json || 'delete' in json)
                 {
-                    console.log('contacts layout');
+                    console.log('main > contacts layout');
 
-                    message_box.style = 'grid-row: 1/2; grid-column: 1/8;';
-                    mode_box.style = 'grid-row: 2/3; grid-column: 1/8; background-color:#fffffc;';
+                    ctn.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 15vh; grid-auto-rows: 100px';
+
+                    // setUpper
+                    message_box.style = 'grid-row: 1/2; grid-column: 1/7;';
+                    mode_box.style = 'grid-row: 2/3; grid-column: 1/7; background-color:#fffffc;';
 
                     if ('suggestions' in json) {
-                        console.log('contacts > suggestions: '+ json.suggestions);
+                        console.log('main > contacts case, suggestions: '+ json.suggestions);
                         var num = json.suggestions.length;
-
-                        sty = "display: grid; grid-template: ";
-                        ctn.style = sty + "grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; grid-template-rows: 15vh 10vh 15vh; grid-auto-rows: 50px;";
-                        for (i=1;i<=num;i++) addAction(fragment, i);
-                        button_enable = true;
+                        for (i=0; i<num; i++) addContactAction(fragment, i+1, 6/num);
                     };
 
                     var contacts_str;
+                    var contact_flag;
                     if ('contacts' in json) {
                         contacts_str = json.contacts;
-                        contact_flag = 0;
-                    } else {
-                        contacts_str = json.contact_delete;
-                        contact_flag = 1;
+                        contact_flag = true;
+                    } else if ('delete' in json) {
+                        contacts_str = json.delete;
+                        contact_flag = false;
                     };
-                    var contactstrlist = split(',',contacts_str)
+                    console.log('main > contacts:'+contacts_str);
+                    var contactstrlist = contacts_str.split(',');
+                    num = contactstrlist.length;
                     contacts = [];
-                    for (i=0; i<contactstrlist.length; i++) {
-                        if (contactstrlist[i]=='') continue;
-                        var nn = split(':',contactstrlist[i]);
+                    for (i=0; i<num; i++) {
+                        var nn = contactstrlist[i].split(':');
                         contacts[i] = {};
                         contacts[i]['name'] = nn[0];
                         contacts[i]['number'] = nn[1];
-                        addContact(fragment, i);
+                        console.log(contacts[i]['name'])
+                        console.log(contacts[i]['number'])
+                        addContact(fragment, i+1, contact_flag);
                     };
 
                 }
@@ -780,7 +789,7 @@ async function main() {
                         else if (num < 10) ctn.style = sty + "15vh 10vh 20vh 15vh 15vh 15vh / 1fr 1fr 1fr;";
                         else ctn.style = sty + "15vh 10vh 5vh 15vh 15vh 15vh 15vh / 1fr 1fr 1fr;"
 
-                        for (i=1;i<=num;i++) addAction(fragment, i);
+                        for (i=0;i<num;i++) addAction(fragment, i+1);
                         button_enable = true;
                     }
                     else {
