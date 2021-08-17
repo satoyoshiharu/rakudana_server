@@ -621,9 +621,13 @@ async function leave_action(json) {
     // On Safari, location.href doesn't work
     // http://wawawa12345.hatenablog.com/entry/2019/03/11/224034
     let ctn = document.getElementById('container');
-    ctn.style = "display: grid; grid-template-columns: 1fr; grid-template-rows: 100vh;"
+    ctn.style = "display: grid; grid-template: 30vh 30vh 30vh / 10% 80% 10%;"
     let [display_box, display_cell] = newBox("display");
-    display_cell.style = "text-align: center; vertical-align: middle; width:90%; font-size:3rem;";
+    display_box.style = 'grid-column:2/3; grid-row:2/3;';
+    display_cell.style = "text-align:center; vertical-align:middle; font-size:3rem; margin 20pt; border-width:20pt; border-style:outset; border-color:light-gray gray light-gray gray; background-color:#c6d5ee7e;";
+    display_cell.addEventListener('onclick', async function(event) {
+        display_cell.style.backgroundColor = "gray";
+    });
     switch (json.action) {
     case 'goto_url':
         console.log('leave_action > handles goto_url');
@@ -633,7 +637,7 @@ async function leave_action(json) {
         ctn.appendChild(display_box);
         a.href = json.url;
         a.click();
-        //location.href = json.url;
+        location.href = json.url;
         break;
     case 'invoke_app':
         console.log('leave_action > handles invoke_action');
@@ -641,7 +645,7 @@ async function leave_action(json) {
         if ('guide' in json)
             display_cell.innerHTML='<a href="' + json.url + '">' + json.guide + '</a>';
         else
-            display_cell.innerHTML='<a href="' + json.url + '">ここを押して下さい</a>';
+            display_cell.innerHTML='<a href="' + json.url + '">ここをタップ</a>';
         ctn.appendChild(display_box)
         //a.href = json.url;
         //a.click();

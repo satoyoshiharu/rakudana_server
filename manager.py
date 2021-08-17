@@ -41,7 +41,7 @@ def init_languagemodel():
     tokenizer.Load("./tokenizer/sentencepiece.model")
     print(f'tokenizer loaded: {type(tokenizer)}')
 
-    wordvectors = KeyedVectors.load('./intent_classifier/wv.model')
+    wordvectors = KeyedVectors.load('./wordvector/wv.model')
     print(f'word vector loaded: {type(wordvectors)}')
 
     szWV = config.WORD_VECTOR_SIZE
@@ -78,6 +78,10 @@ def lm(conn):
                     intent = torch.argmax(intent_classifier(torch.unsqueeze(input_data, 0))).item()
                 print(f'detect_intent> {com.intents[intent]}')
                 conn.send(str(intent))
+            elif req[:11] == 'similarity$':
+                words = req[11:].split(',')
+                score = wordvectors.similarity(words[0],words[1])
+                conn.send(f'{score}')
     except EOFError as e:
         print(f'pipe killed: {e}')
     finally:
@@ -122,7 +126,7 @@ def usedPort(port):
         return False
 
 
-def generate_startPage(userport):
+def generate_startPage(userport, invoker):
     page = ''
     with open('./www/start.html', 'r') as f:
         for line in f:
@@ -130,7 +134,10 @@ def generate_startPage(userport):
                 page += line + "\n"
                 page += f"<link rel='icon' type='image/png' href='/www/image/favicon.png' >\n"
             elif line.find('<img>') != -1:
-                page += f"<img src='/www/image/logo_xxxhdpi_192x192_rounded.png' style='display:block; margin:auto;'>\n"
+                if invoker == 'rakudana_app':
+                    page += f"<img src='/www/image/rakudana_launcher.png' style='display:block; margin:auto;'>\n"
+                else:
+                    page += f"<img src='/www/image/logo_xxxhdpi_192x192_rounded.png' style='display:block; margin:auto;'>\n"
             elif line.find('</body>') != -1:
                 page += line + "\n"
                 page += '<script>\n'
@@ -224,7 +231,7 @@ async def http_handler(request):
 
             print(f'manager.websocket_handler > created a user proc {userproc.pid} port {user_port}')
 
-            page = generate_startPage(user_port)
+            page = generate_startPage(user_port, invoker)
             print(f"managee.http_handler -> client > index page")
             return web.Response(content_type='text/html', text=page)
 

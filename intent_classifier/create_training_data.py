@@ -54,9 +54,9 @@ if __name__ == '__main__':
   sp = spm.SentencePieceProcessor()
   sp.Load("../tokenizer/sentencepiece.model")
 
-  wv_model = Word2Vec.load('../wordvector/wordvector.model')
-  wv_model.wv.save('wv.model')
-  model = KeyedVectors.load('wv.model')
+  #wv_model = Word2Vec.load('../wordvector/wordvector.model')
+  #wv_model.wv.save('wv.model')
+  model = KeyedVectors.load('../wordvector/wv.model')
 
   # def wordbreak(s):
   #   word_break = sp.EncodeAsPieces(s)

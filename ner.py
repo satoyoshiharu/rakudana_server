@@ -57,8 +57,19 @@ class Digits(Entity):
 
 class NER():
 
-    def __init__(self):
+    def __init__(self, usr):
         self.entitylist = []
+        self.user = usr
+
+    def is_human(self, word):
+        self.user.pipe.send('similarity$' + word + ',' + '人')
+        hito = self.user.pipe.recv()
+        self.user.pipe.send('similarity$' + word + ',' + '物')
+        mono = self.user.pipe.recv()
+        if float(hito) > float(mono):
+            return True
+        else:
+            return False
 
     def find_entity(self, morphs):
         print('NER.find_entity > ...')
@@ -81,6 +92,15 @@ class NER():
                 pn.name = pn.meiyomi
                 print(f'NER.find_entity > Person {pn.name}')
                 self.entitylist.append(pn)
+            elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞一般****' and \
+                    i + 1 < maxI and 'pos' in morphs[i + 1].keys() and \
+                    morphs[i + 1]['surface'] == 'に' and morphs[i + 1]['pos'] == '助詞格助詞一般***':
+                #　eg. 'お父さん'
+                if self.is_human(morphs[i]['surface']):
+                    pn = Person()
+                    pn.name = morphs[i]['surface']
+                    print(f'NER.find_entity > Person {pn.name}')
+                    self.entitylist.append(pn)
             elif 'pos' in morphs[i].keys() and morphs[i]['pos'] == '名詞数***':
                 # capture 090-2935-5792 or 110
                 digit = Digits()

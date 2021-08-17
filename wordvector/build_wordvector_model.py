@@ -16,6 +16,7 @@ from datetime import datetime
 import sentencepiece as spm
 import logging
 from gensim.models.word2vec import Word2Vec, PathLineSentences
+from gensim.models import KeyedVectors
 import os
 import config
 
@@ -40,4 +41,10 @@ model = Word2Vec(
     workers=4
 )
 model.save('wordvector.model')
+wv_model = Word2Vec.load('wordvector.model')
+wv_model.wv.save('wv.model')
+model = KeyedVectors.load('wv.model')
+model.most_similar(positive='父')
+model.similarity('人','父')
+model.similarity('物','父')
 

@@ -10,7 +10,7 @@ import config
 sp = spm.SentencePieceProcessor()
 sp.Load("../tokenizer/sentencepiece.model")
 
-wv = KeyedVectors.load('wv.model')
+wv = KeyedVectors.load('../wordvector/wv.model')
 
 szWV = config.WORD_VECTOR_SIZE
 numINTENT = com.INTENT_MAX + 1
@@ -35,5 +35,6 @@ with torch.no_grad():  # batch size is len(dataset_valid)
     print('メッセージ送る',eval(data('メッセージ送る')))
     print('LINE送る',eval(data('LINE送る')))
     print('何ができる？',eval(data('何ができる？')))
+    print('お父さんに電話',eval(data('お父さんに電話')))
 
 

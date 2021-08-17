@@ -46,7 +46,7 @@ class User:
         self.screen_height = 0
         self.cookie = ''
         if self.invoker == 'rakudana_app':
-            self.ner = NER()
+            self.ner = NER(self)
             self.app_conn_flag = False
             self.app_close_flag = False
             self.contacts = []
@@ -387,7 +387,8 @@ class Initial(Scene):
         json_text = ''
         if self.user.invoker == 'rakudana_app':
             display = 'シニアがスマホを使うときに苦手なことをお手伝いします。' +\
-                      '<br>できること：電話をかける、ショートメッセージを送る、LINEでメッセージを送る。'
+                      '<br>できること：<br>・電話をかける<br>・ショートメッセージを送る<br>・LINEでメッセージを送る' +\
+                    '<br>・NPOげんきかいのこと'
             json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + '}'
 
         elif self.user.org == 'genkikai':
