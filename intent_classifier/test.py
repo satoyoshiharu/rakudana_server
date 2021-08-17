@@ -36,5 +36,12 @@ with torch.no_grad():  # batch size is len(dataset_valid)
     print('LINE送る',eval(data('LINE送る')))
     print('何ができる？',eval(data('何ができる？')))
     print('お父さんに電話',eval(data('お父さんに電話')))
+    print('げんきかい',eval(data('げんきかい')))
+    print('げんきかい管理',eval(data('げんきかい管理')))
+    print('げんきかい予約確認',eval(data('げんきかい予約確認')))
+    print('げんきかい履歴管理',eval(data('げんきかい履歴管理')))
+    print('げんきかい予約管理',eval(data('げんきかい予約管理')))
+
+
 
 

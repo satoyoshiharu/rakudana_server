@@ -42,6 +42,13 @@ def embSum(text, tokenizer, wvmodel):
   #print(f'mean: {em}')
   return em
 
+def gen(intent):
+  str = com.intents[intent]
+  dfname = pd.read_csv(str + '.txt', header=None, sep='\t', names=['SENTENCE'])
+  dfname = dfname[dfname['SENTENCE']!='']
+  dfname['INTENT'] = intent
+  return dfname
+
 if __name__ == '__main__':
 
   import sys
@@ -53,15 +60,7 @@ if __name__ == '__main__':
 
   sp = spm.SentencePieceProcessor()
   sp.Load("../tokenizer/sentencepiece.model")
-
-  #wv_model = Word2Vec.load('../wordvector/wordvector.model')
-  #wv_model.wv.save('wv.model')
   model = KeyedVectors.load('../wordvector/wv.model')
-
-  # def wordbreak(s):
-  #   word_break = sp.EncodeAsPieces(s)
-  #   word_break = strip_spacemark(word_break)
-  #   return " ".join(word_break)
 
   df_others = pd.read_csv('/media/sf_E_DRIVE/研究社/ej/kej.txt', header=None, sep='\t', names=['SENTENCE'])
   df_others = df_others[df_others['SENTENCE']!='']
@@ -71,61 +70,30 @@ if __name__ == '__main__':
   CUR_DIR = os.getcwd()
   os.chdir(CORPORA_DIR)
 
-  exec(open('gen_help.py').read())
-  df_help = pd.read_csv('help.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_help = df_help[df_help['SENTENCE']!='']
-  df_help['INTENT'] = com.INTENT_HELP
-
-  exec(open('gen_yes.py').read())
-  df_yes = pd.read_csv('yes.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_yes = df_yes[df_yes['SENTENCE']!='']
-  df_yes['INTENT'] = com.INTENT_YES
-
-  exec(open('gen_no.py').read())
-  df_no = pd.read_csv('no.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_no = df_no[df_no['SENTENCE']!='']
-  df_no['INTENT'] = com.INTENT_NO
-
-  exec(open('gen_cancel.py').read())
-  df_cancel = pd.read_csv('cancel.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_cancel = df_cancel[df_cancel['SENTENCE']!='']
-  df_cancel['INTENT'] = com.INTENT_CANCEL
-
-  exec(open('gen_retry.py').read())
-  df_retry = pd.read_csv('retry.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_retry = df_retry[df_retry['SENTENCE']!='']
-  df_retry['INTENT'] = com.INTENT_RETRY
-
-  exec(open('gen_tel.py').read())
-  df_tel = pd.read_csv('tel.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_tel = df_tel[df_tel['SENTENCE']!='']
-  df_tel['INTENT'] = com.INTENT_TEL
-
-  exec(open('gen_police_call.py').read())
-  df_call_police = pd.read_csv('call_police.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_call_police = df_call_police[df_call_police['SENTENCE']!='']
-  df_call_police['INTENT'] = com.INTENT_CALL_POLICE
-
-  exec(open('gen_emergency_call.py').read())
-  df_call_emergency = pd.read_csv('call_emergency.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_call_emrrgency = df_call_emergency[df_call_emergency['SENTENCE']!='']
-  df_call_emergency['INTENT'] = com.INTENT_CALL_EMERGENCY
-
-  exec(open('gen_send_line_message.py').read())
-  df_send_line_message = pd.read_csv('send_line_message.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_send_line_message = df_send_line_message[df_send_line_message['SENTENCE']!='']
-  df_send_line_message['INTENT'] = com.INTENT_SEND_LINE_MESSAGE
-
-  exec(open('gen_send_short_message.py').read())
-  df_send_short_message = pd.read_csv('send_short_message.txt', header=None, sep='\t', names=['SENTENCE'])
-  df_send_short_message = df_send_short_message[df_send_short_message['SENTENCE']!='']
-  df_send_short_message['INTENT'] = com.INTENT_SEND_SHORT_MESSAGE
+  df_help = gen(com.INTENT_HELP)
+  df_yes = gen(com.INTENT_YES)
+  df_no = gen(com.INTENT_NO)
+  df_cancel = gen(com.INTENT_CANCEL)
+  df_retry = gen(com.INTENT_RETRY)
+  df_tel = gen(com.INTENT_TEL)
+  df_call_police = gen(com.INTENT_CALL_POLICE)
+  df_call_emergency = gen(com.INTENT_CALL_EMERGENCY)
+  df_send_line_message = gen(com.INTENT_SEND_LINE_MESSAGE)
+  df_send_short_message = gen(com.INTENT_SEND_SHORT_MESSAGE)
+  df_genkikai = gen(com.INTENT_GENKIKAI)
+  df_genkikai_admin = gen(com.INTENT_GENKIKAI_ADMIN)
+  df_genkikai_myreservation = gen(com.INTENT_GENKIKAI_MYRESERVATION)
+  df_genkikai_news = gen(com.INTENT_GENKIKAI_NEWS)
+  df_genkikai_manage_records = gen(com.INTENT_GENKIKAI_MANAGE_RECORDS)
+  df_genkikai_manage_reservations = gen(com.INTENT_GENKIKAI_MANAGE_RESERVATIONS)
 
   os.chdir(CUR_DIR)
 
   df = pd.concat([df_others,df_help,df_yes,df_no,df_cancel,df_retry,
                   df_tel,df_call_police,df_call_emergency,
-                  df_send_line_message,df_send_short_message])
+                  df_send_line_message,df_send_short_message,
+                  df_genkikai, df_genkikai_admin, df_genkikai_myreservation, df_genkikai_news,
+                  df_genkikai_manage_records, df_genkikai_manage_reservations])
   print(f"df:{df.shape}")
   labels = df['INTENT'].reset_index()
   labels = labels['INTENT']

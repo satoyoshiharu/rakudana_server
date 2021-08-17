@@ -4,19 +4,20 @@ import shlex
 import glob
 import config
 
+UPDATE_INTENT_TEXTS = False
+BUILD_TOKENIZER = False
+UPDATE_WORDBREAK_DATA = False
+BUILD_WORDVECTOR = False
 UPDATE_INTENT_DATA = True
-BUILD_TOKENIZER = True
-UPDATE_WORDBREAK_DATA = True
-BUILD_WORDVECTOR = True
 BUILD_INTENT_CLASSIFIER = True
 
 DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 INTENT_DATA_FOLDER = '/home/ysato/PycharmProjects/rakudana/corpora/intent'
 CUR_DIR = os.getcwd() # intent_classifier
 
-if UPDATE_INTENT_DATA:
-    print('### create intent classifier texts...')
-    exec(open('./create_training_data.py').read())
+if UPDATE_INTENT_TEXTS:
+    print('### create intent texts...')
+    exec(open('./create_training_texts.py').read())
 
 if BUILD_TOKENIZER:
     print('### build tokenizer...')
@@ -41,9 +42,13 @@ if BUILD_WORDVECTOR:
     print('### build word vector...')
     exec(open('./build_wordvector_model.py').read())
 
+if UPDATE_INTENT_DATA:
+    os.chdir(CUR_DIR)
+    print('### create intent classifier binary data...')
+    exec(open('./create_training_data.py').read())
+
 if BUILD_INTENT_CLASSIFIER:
     print('### build intent_classifier...')
     os.chdir(CUR_DIR)
-    exec(open('./create_training_data.py').read()) # generate binary training/valid data
     exec(open('./train.py').read())
     exec(open('./test.py').read())

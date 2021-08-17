@@ -388,7 +388,7 @@ class Initial(Scene):
         if self.user.invoker == 'rakudana_app':
             display = 'シニアがスマホを使うときに苦手なことをお手伝いします。' +\
                       '<br>できること：<br>・電話をかける<br>・ショートメッセージを送る<br>・LINEでメッセージを送る' +\
-                    '<br>・NPOげんきかいのこと'
+                    '<br>・NPOげんきかいのこと:予約確認、お知らせ、履歴管理、予約管理'
             json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + '}'
 
         elif self.user.org == 'genkikai':
@@ -434,6 +434,30 @@ class Initial(Scene):
             elif intent == com.INTENT_SEND_LINE_MESSAGE:
                 await self.feedback("LINEメッセージ送信ですね", 0)
                 return SendLineMessageInput(self.user)
+            elif intent == com.INTENT_GENKIKAI:
+                await self.feedback("げんきかいですね", 0)
+                self.user.invoker = ''
+                self.user.org = 'genkikai'
+                self.user.role = 'member'
+                return Initial(self.user)
+            elif intent == com.INTENT_GENKIKAI_ADMIN:
+                await self.feedback("げんきかいの管理業務ですね", 0)
+                self.user.invoker = ''
+                self.user.org = 'genkikai'
+                self.user.role = 'admin'
+                return Initial(self.user)
+            elif intent == com.INTENT_GENKIKAI_MYRESERVATION:
+                await self.feedback("げんきかいの予約状況ですね", 0)
+                return await self.act_myreservation()
+            elif intent == com.INTENT_GENKIKAI_NEWS:
+                await self.feedback("げんきかいからのお知らせですね", 0)
+                return await self.act_news()
+            elif intent == com.INTENT_GENKIKAI_MANAGE_RECORDS:
+                await self.feedback("げんきかいの履歴管理ですね", 0)
+                return Reserve(self.user, None)
+            elif intent == com.INTENT_GENKIKAI_MANAGE_RESERVATIONS:
+                await self.feedback("げんきかいの予約管理ですね", 0)
+                return Record(self.user, None)
 
         elif self.user.org == 'genkikai':
 
