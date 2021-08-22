@@ -660,6 +660,7 @@ async function leave_action(json) {
         ws.close();
         disable_button();
         disable_sr();
+        clear('container');
         break;
     //case 'set_cookie':
     //    document.cookie = json.cookie;
