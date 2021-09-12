@@ -46,6 +46,7 @@ def gen(intent):
   str = com.intents[intent]
   dfname = pd.read_csv(str + '.txt', header=None, sep='\t', names=['SENTENCE'])
   dfname = dfname[dfname['SENTENCE']!='']
+  print(f'gen> {str}')
   dfname['INTENT'] = intent
   return dfname
 
@@ -64,36 +65,21 @@ if __name__ == '__main__':
 
   df_others = pd.read_csv('/media/sf_E_DRIVE/研究社/ej/kej.txt', header=None, sep='\t', names=['SENTENCE'])
   df_others = df_others[df_others['SENTENCE']!='']
-  df_others['INTENT'] = com.INTENT_OTHERS
+  df_others['INTENT'] = com.INTENT_OTHERS #<--0
 
-  CORPORA_DIR = '../corpora/intent/'
+  CORPORA_DIR = '../corpora/intent/texts'
   CUR_DIR = os.getcwd()
   os.chdir(CORPORA_DIR)
 
-  df_help = gen(com.INTENT_HELP)
-  df_yes = gen(com.INTENT_YES)
-  df_no = gen(com.INTENT_NO)
-  df_cancel = gen(com.INTENT_CANCEL)
-  df_retry = gen(com.INTENT_RETRY)
-  df_tel = gen(com.INTENT_TEL)
-  df_call_police = gen(com.INTENT_CALL_POLICE)
-  df_call_emergency = gen(com.INTENT_CALL_EMERGENCY)
-  df_send_line_message = gen(com.INTENT_SEND_LINE_MESSAGE)
-  df_send_short_message = gen(com.INTENT_SEND_SHORT_MESSAGE)
-  df_genkikai = gen(com.INTENT_GENKIKAI)
-  df_genkikai_admin = gen(com.INTENT_GENKIKAI_ADMIN)
-  df_genkikai_myreservation = gen(com.INTENT_GENKIKAI_MYRESERVATION)
-  df_genkikai_news = gen(com.INTENT_GENKIKAI_NEWS)
-  df_genkikai_manage_records = gen(com.INTENT_GENKIKAI_MANAGE_RECORDS)
-  df_genkikai_manage_reservations = gen(com.INTENT_GENKIKAI_MANAGE_RESERVATIONS)
+  print('intent_max::', str(com.INTENT_MAX))
+  df_list = [df_others]
+  for i in range(1, com.INTENT_MAX+1):
+    df_list.append(gen(i))
+  print('df list length:', len(df_list))
 
   os.chdir(CUR_DIR)
 
-  df = pd.concat([df_others,df_help,df_yes,df_no,df_cancel,df_retry,
-                  df_tel,df_call_police,df_call_emergency,
-                  df_send_line_message,df_send_short_message,
-                  df_genkikai, df_genkikai_admin, df_genkikai_myreservation, df_genkikai_news,
-                  df_genkikai_manage_records, df_genkikai_manage_reservations])
+  df = pd.concat(df_list)
   print(f"df:{df.shape}")
   labels = df['INTENT'].reset_index()
   labels = labels['INTENT']

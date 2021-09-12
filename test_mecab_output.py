@@ -7,3 +7,4 @@ print(tagger.parse('110番'))  # preload dictionary
 print(tagger.parse('090-2935-5792'))  # preload dictionary
 print(tagger.parse('鈴木さんに電話'))  # preload dictionary
 print(tagger.parse('お父さんに電話'))  # preload dictionary
+print(tagger.parse('げんきかい'))  # preload dictionary

@@ -386,11 +386,10 @@ class Initial(Scene):
 
         json_text = ''
         if self.user.invoker == 'rakudana_app':
-            display = 'シニアがスマホを使うときに苦手なことをお手伝いします。' +\
-                      '<br>できること：<br>・電話をかける<br>・ショートメッセージを送る<br>・LINEでメッセージを送る' +\
-                    '<br>・NPOげんきかいのこと:予約確認、お知らせ、履歴管理、予約管理'
-            json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + '}'
-
+            display = 'シニアがスマホを使うときに、苦手なことをお手伝いします。やりたいことをお話ください。' +\
+                '例：「何ができるの？」、「佐藤さんにショートメッセージ」'
+            json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}",' +\
+                        '"suggestions":["？","安全診断"]' + '}'
         elif self.user.org == 'genkikai':
             if self.user.role == 'admin':
                 json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
@@ -416,9 +415,12 @@ class Initial(Scene):
 
         if self.user.invoker == 'rakudana_app':
             print('Initial.interpret > rakudana_app case')
-            if intent == com.INTENT_HELP:
+            if intent == com.INTENT_HELP or selection == '1':
                 await self.feedback("私が何ができるかということですね？", 0)
-                return await self.act_help()
+                return RakudanaHelp(self.user)
+            elif intent == com.INTENT_CHECK_SECURITY or selection == '2':
+                await self.feedback("安全度診断ですね", 0)
+                return await self.act_check_security()
             elif intent == com.INTENT_TEL:
                 await self.feedback("電話ですね", 0)
                 return await self.act_make_call()
@@ -434,6 +436,25 @@ class Initial(Scene):
             elif intent == com.INTENT_SEND_LINE_MESSAGE:
                 await self.feedback("LINEメッセージ送信ですね", 0)
                 return SendLineMessageInput(self.user)
+            elif intent == com.INTENT_SAVE_MEMO:
+                await self.feedback("メモを保存しますね", 0)
+                return await self.act_save_memo()
+            elif intent == com.INTENT_PUT_PAGE_SHORTCUT:
+                await self.feedback("ページをホーム画面に置きます", 0)
+                return await self.act_put_page_shortcut()
+            elif intent == com.INTENT_MAP:
+                await self.feedback("地図を開きます", 0)
+                return await self.act_open_map(json_dict['recognized'])
+            elif intent == com.INTENT_NEWS:
+                await self.feedback("ニュースですね", 0)
+                return await self.act_open_news()
+            elif intent == com.INTENT_WEATHER:
+                await self.feedback("天気ですね", 0)
+                return await self.act_open_weather()
+            elif intent == com.INTENT_CALCULATOR:
+                await self.feedback("電卓ですね", 0)
+                return await self.act_open_calculator()
+
             elif intent == com.INTENT_GENKIKAI:
                 await self.feedback("げんきかいですね", 0)
                 self.user.invoker = ''
@@ -458,6 +479,8 @@ class Initial(Scene):
             elif intent == com.INTENT_GENKIKAI_MANAGE_RESERVATIONS:
                 await self.feedback("げんきかいの予約管理ですね", 0)
                 return Record(self.user, None)
+            elif intent == com.INTENT_OTHERS:
+                return await self.act_others(json_dict)
 
         elif self.user.org == 'genkikai':
 
@@ -502,16 +525,17 @@ class Initial(Scene):
                 await asyncio.sleep(1)
                 return self
 
-    async def act_help(self):
-        print('act_help')
-        text = 'ご要件は？'
-        speech = 'シニアがスマホを使うときに、苦手なことをお手伝いします。やりたいことをお話ください。' +\
-                 '現在は、電話をかけること、緊急電話、ショートメッセージをおくること、LINEでメッセージを送ることを、お手伝いできます。'
-        display = 'できること：電話をかける、緊急電話、ショートメッセージを送る、LINEでメッセージを送る。'
-        json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + '}'
-        print(json_text)
-        await self.send_str(json_text)
-        return self
+    async def act_check_security(self):
+        print('act_check_security')
+        url = 'https://npogenkikai.net/security-check-quize/'
+        await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
+        return None
+
+    async def act_others(self, json_dict):
+        print('act_others')
+        query = json_dict['recognized']
+        return f'apps://rakudana.com/client_app/search?query={query}'
+        return None
 
     async def act_make_call(self):
 
@@ -596,6 +620,68 @@ class Initial(Scene):
         # await self.send_str(json_text)
         #await invoke_client(url)
         #return None
+
+    async def act_save_memo(self):
+        print('act_save_memo')
+        await self.feedback("カメラを開きますので、メモを写真に撮って下さい。", 2)
+        url = f'apps://rakudana.com/client_app/save_memo'
+        guide = 'カメラを開きますので、メモを写真に撮って下さい。'
+        json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"{guide}"' + '}'
+        print(f'act_make_call > json_text: {json_text} -> browser')
+        await self.send_str(json_text)
+        return None
+
+    async def act_put_page_shortcut(self):
+        print('act_save_memo')
+        await self.feedback("カメラを開きますので、ページのQRコードを撮って下さい。", 2)
+        url = f'apps://rakudana.com/client_app/put_page_shortcut'
+        guide = 'ページのQRコードを撮って下さい。'
+        json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"{guide}"' + '}'
+        print(f'act_make_call > json_text: {json_text} -> browser')
+        await self.send_str(json_text)
+        return None
+
+    async def act_open_map(self, query):
+        print('act_open_map')
+        # invoke Android google map app.
+        # https://www.google.co.jp/map/?hl=ja will not provide mike option
+        url = f'apps://rakudana.com/client_app/map'
+        q = urllib.parse.quote(query)
+        json_text = '{' + f'"action":"invoke_app","url":"{url}?q={q}"' + '}'
+        print(f'act_make_call > json_text: {json_text} -> browser')
+        await self.send_str(json_text)
+        return None
+
+
+    async def act_open_news(self, query):
+        print('act_open_news')
+        # direct to hhttps://www.smartnews.com/ja/ or invoke the app
+        url = f'apps://rakudana.com/client_app/news'
+        json_text = '{' + f'"action":"invoke_app","url":"{url}' + '}'
+        print(f'act_make_call > json_text: {json_text} -> browser')
+        await self.send_str(json_text)
+        return None
+
+
+    async def act_open_weather(self, query):
+        print('act_open_weather')
+        # direct to hhttps://www.weathernews.jp
+        url = f'https://www.weathernews.jp/'
+        json_text = '{' + f'"action":"goto_url","url":"{url}' + '}'
+        print(f'act_make_call > json_text: {json_text} -> browser')
+        await self.send_str(json_text)
+        return None
+
+
+    async def act_open_calculator(self, query):
+        print('act_open_calculator')
+        # direct to hhttps://www.weathernews.jp
+        url = f'https://www.webdentaku.com/'
+        json_text = '{' + f'"action":"goto_url","url":"{url}' + '}'
+        print(f'act_make_call > json_text: {json_text} -> browser')
+        await self.send_str(json_text)
+        return None
+
 
     async def id2person(self, userid):
         print(f'id2person>{userid}')
@@ -682,6 +768,51 @@ class Initial(Scene):
         await self.send_str(json_text)
         return None
         #return ViewInlineFrame(self.user, url)
+
+
+class RakudanaHelp(Scene):
+
+    def __init__(self, usr, parent):
+        super().__init__(usr)
+        self.user = usr
+        self.parent = parent
+
+    async def prompt(self):
+        print('RakudanaHelp.prompt')
+        text = 'シニアがスマホを使うときに、苦手なことをお手伝いします。'
+        speech = 'シニアがスマホを使うときに、苦手なことをお手伝いします。'
+        display = '<br>できること：<br>・電話をかける<br>・緊急電話<br>・ショートメッセージを送る<br>・LINEでメッセージを送る' +\
+            '<br>・スマホ利用の安全度診断' +\
+            '<br>・プライベートなメモの保存' +\
+            '<br>・QRコードでページをホーム画面に置く' +\
+            '<br>・NPOげんきかい:予約確認、お知らせ、履歴・予約管理'
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' +\
+                    '"suggestions":["詳細","戻る"]'+ '}'
+        await self.send_str(json_text)
+        return
+
+    async def interpret(self):
+        print('RakudanaHelp.interpret')
+        if self.counter > 5:
+            await self.feedback("終了します",1)
+            return None
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
+            await self.feedback("終了します", 1)
+            return None
+        if any(['詳細' in m['surface'] for m in morphs]) or selection == '1':
+            await self.feedback("詳細案内ページへ飛びます。", 2)
+            url = 'https://yo-sato.com/rakudana/index.html'
+            await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
+            return None
+        elif any([m['surface'].startswith('戻') for m in morphs]) or selection == '2':
+            await self.feedback("戻ります。", 0)
+            return self.parent
+        else:
+            self.error = com.INF_NO_TARGET_WORDS
+            self.counter += 1
+            await asyncio.sleep(1)
+            return self
 
 
 class Secondary(Scene):
@@ -1719,8 +1850,7 @@ class SendReservationMessageS(Scene):
                 message = f'(試験運用です) {name_str}様、'
                 message += f'げんきかいの健康麻雀の、{self.reservation.date.month}月' +\
                            f'{self.reservation.date.day}日{self.reservation.date.ampm}の枠が予約されています。'
-                message += 'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。' +\
-                           'ただ、このリンクをLINEから開いても動かないので、やり方は担当者に聞いて下さい。'
+                message += 'なお、ホームページ https://npogenkikai.net/?openExternalBrowser=1 から数週間後までの予約を随時確認できます。'
                 th = threading.Thread(target=send_to_line, args=([lineid, message]))
                 th.start()
                 print(message)
@@ -1736,7 +1866,7 @@ class SendReservationMessageS(Scene):
             + f'(試験運用です) X様、'\
               + f'げんきかいの健康麻雀の、{self.reservation.date.month}月{self.reservation.date.day}' +\
                         '日{self.reservation.date.ampm}の枠が予約されています。' +\
-                        'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。' +\
+                        'なお、ホームページ https://npogenkikai.net/?openExternalBrowser=1 から数週間後までの予約を随時確認できます。' +\
                         '』と送信されました。'
         admin_message += '\n次の方は、LINEIDが不明なため確認メッセージが送れませんでした：' + notsent
         th = threading.Thread(target=send_to_line, args=([None, admin_message]))

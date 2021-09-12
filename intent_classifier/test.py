@@ -23,25 +23,37 @@ def data(str):
 def eval(t):
     return com.intents[torch.argmax(model(torch.unsqueeze(t,0))).item()]
 
+def test(t):
+    print('テスト文:'+t,'=>結果:'+eval(data(t)))
+
 model.eval()
 with torch.no_grad():  # batch size is len(dataset_valid)
-    print('はい',eval(data('はい')))
-    print('いいえ',eval(data('いいえ')))
-    print('キャンセル',eval(data('キャンセル')))
-    print('やり直す',eval(data('やり直す')))
-    print('電話をかける',eval(data('電話をかける')))
-    print('110番に電話',eval(data('110番に電話')))
-    print('119番に電話する',eval(data('119番に電話する')))
-    print('メッセージ送る',eval(data('メッセージ送る')))
-    print('LINE送る',eval(data('LINE送る')))
-    print('何ができる？',eval(data('何ができる？')))
-    print('お父さんに電話',eval(data('お父さんに電話')))
-    print('げんきかい',eval(data('げんきかい')))
-    print('げんきかい管理',eval(data('げんきかい管理')))
-    print('げんきかい予約確認',eval(data('げんきかい予約確認')))
-    print('げんきかい履歴管理',eval(data('げんきかい履歴管理')))
-    print('げんきかい予約管理',eval(data('げんきかい予約管理')))
+    test('はい')
+    test('いいえ')
+    test('キャンセル')
+    test('やり直す')
 
+    test('安全診断して')
+    test('何ができるか教えて')
+    test('電話をかける')
+    test('お父さんに電話')
+    test('110番に電話')
+    test('119番に電話する')
+    test('メッセージ送る')
+    test('LINE送る')
+    test('メモを保存して')
+    test('ページをホーム画面に置いて')
+    test('コンビニはどこにある')
+    test('近くのコンビニはどこ')
+    test('ニュースを開いて')
+    test('今日の天気')
+    test('電卓')
+
+    test('元気かい')
+    test('元気かい管理')
+    test('元気かい予約確認')
+    test('元気かい履歴管理')
+    test('元気かい予約管理')
 
 
 

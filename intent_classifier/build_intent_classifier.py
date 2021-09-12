@@ -4,15 +4,15 @@ import shlex
 import glob
 import config
 
-UPDATE_INTENT_TEXTS = False
-BUILD_TOKENIZER = False
-UPDATE_WORDBREAK_DATA = False
-BUILD_WORDVECTOR = False
+UPDATE_INTENT_TEXTS = True
+BUILD_TOKENIZER = True
+UPDATE_WORDBREAK_DATA = True
+BUILD_WORDVECTOR = True
 UPDATE_INTENT_DATA = True
 BUILD_INTENT_CLASSIFIER = True
 
 DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
-INTENT_DATA_FOLDER = '/home/ysato/PycharmProjects/rakudana/corpora/intent'
+INTENT_DATA_FOLDER = '/home/ysato/PycharmProjects/rakudana/corpora/intent/texts'
 CUR_DIR = os.getcwd() # intent_classifier
 
 if UPDATE_INTENT_TEXTS:

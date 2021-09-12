@@ -41,6 +41,7 @@ if __name__ == '__main__':
     line_parser = WebhookParser(config.LINE_CHANNEL_SECRET)
 
     today = datetime.today()
+
     #
     # copy today's reservation data to record table
     #
@@ -53,6 +54,10 @@ if __name__ == '__main__':
     #
 
     cfm = today + relativedelta(days=7)
+
+    w_list = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
+    youbi = w_list[cfm.weekday()]
+
     date = f'{cfm.year}/{cfm.month}/{cfm.day}'
     print(f'{cfm}')
     idList = sendJson("https://npogenkikai.net/reserve.php",
@@ -78,16 +83,16 @@ if __name__ == '__main__':
         print(lineid, nameStr)
         if lineid != '':
             message = f'(試験運用です) {nameStr}様、'
-            message += f'げんきかいの健康麻雀の、{cfm.month}月{cfm.day}日pmの枠が予約されています。'
-            message += 'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。'
+            message += f'げんきかいの健康麻雀の、{cfm.month}月{cfm.day}日{youbi}pmの枠が予約されています。'
+            message += 'なお、ホームページ https://npogenkikai.net/?openExternalBrowser=1  から数週間後までの予約を随時確認できます。'
             sendToLine(lineid, message)
             sent += nameStr + ','
         else:
             notsent += nameStr + ','
     admin_message = '[管理者情報]\n次の方に確認メッセージが送信されました：\n' + sent + '\n『'\
         + f'(試験運用です) X様、'\
-          + f'げんきかいの健康麻雀の、{cfm.month}月{cfm.day}日pmの枠が予約されています。'\
-            + 'なお、ホームページ https://npogenkikai.net/ から数週間後までの予約を随時確認できます。' + '』'
+          + f'げんきかいの健康麻雀の、{cfm.month}月{cfm.day}日{youbi}pmの枠が予約されています。'\
+            + 'なお、ホームページ https://npogenkikai.net/?openExternalBrowser=1  から数週間後までの予約を随時確認できます。' + '』'
     admin_message += '\n次の方は、LINEIDが不明なため確認メッセージが送れませんでした：\n' + notsent
     sendToLine(None,admin_message)
     print(admin_message)

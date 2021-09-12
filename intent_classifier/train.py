@@ -18,23 +18,27 @@ class IntentDataset(Dataset):
 class Net(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
-        # self.fc1 = nn.Linear(input_size, 128)
-        # nn.init.kaiming_normal_(self.fc1.weight)
-        # self.fc2 = nn.Linear(128, 64)
-        # nn.init.kaiming_normal_(self.fc2.weight)
-        # self.fc3 = nn.Linear(64, output_size)
-        # nn.init.kaiming_normal_(self.fc3.weight)
-        # self.bn1 = nn.BatchNorm1d(128)
-        # self.bn2 = nn.BatchNorm1d(64)
-        self.fc1 = nn.Linear(input_size, 64)
-        nn.init.kaiming_normal_(self.fc1.weight)
-        self.fc2 = nn.Linear(64, output_size)
-        nn.init.kaiming_normal_(self.fc2.weight)
-        self.bn1 = nn.BatchNorm1d(64)
+        if False:
+            self.fc1 = nn.Linear(input_size, 128)
+            nn.init.kaiming_normal_(self.fc1.weight)
+            self.fc2 = nn.Linear(128, 64)
+            nn.init.kaiming_normal_(self.fc2.weight)
+            self.fc3 = nn.Linear(64, output_size)
+            nn.init.kaiming_normal_(self.fc3.weight)
+            self.bn1 = nn.BatchNorm1d(128)
+            self.bn2 = nn.BatchNorm1d(64)
+        else:
+            self.fc1 = nn.Linear(input_size, 64)
+            nn.init.kaiming_normal_(self.fc1.weight)
+            self.fc2 = nn.Linear(64, output_size)
+            nn.init.kaiming_normal_(self.fc2.weight)
+            self.bn1 = nn.BatchNorm1d(64)
 
     def forward(self, x):
-        # x = self.fc3(F.relu(self.bn2(self.fc2(F.relu(self.bn1(self.fc1(x)))))))
-        x = self.fc2(F.relu(self.bn1(self.fc1(x))))
+        if False:
+            x = self.fc3(F.relu(self.bn2(self.fc2(F.relu(self.bn1(self.fc1(x)))))))
+        else:
+            x = self.fc2(F.relu(self.bn1(self.fc1(x))))
         return x
 
 class Measure():
@@ -123,6 +127,7 @@ if __name__ == '__main__':
     dataset_valid = IntentDataset(x_valid, y_valid)
     dataloader_valid = DataLoader(dataset_valid, batch_size=len(dataset_valid), shuffle=False)
 
+    print(f'model: wordvector size: {szWV}, number of intents: {numINTENT}')
     model = Net(szWV, numINTENT)#.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)

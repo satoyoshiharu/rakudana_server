@@ -38,7 +38,7 @@ model = Word2Vec(
     min_count=MIN_COUNT,
     window=WINDOW,
     sg=SG,
-    workers=4
+    workers=3
 )
 model.save('wordvector.model')
 wv_model = Word2Vec.load('wordvector.model')
