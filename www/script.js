@@ -637,11 +637,13 @@ async function leave_action(json) {
         ctn.appendChild(display_box);
         a.href = json.url;
         a.click();
-        location.href = json.url;
+        //location.href = json.url;
+        location.replace(json.url)
         break;
     case 'invoke_app':
         console.log('leave_action > handles invoke_action');
         while (ctn != null && ctn.firstChild != null) { ctn.removeChild(ctn.firstChild); }
+        // NOTE: Chrome requires human operation to invoke app link
         if ('guide' in json)
             display_cell.innerHTML='<a href="' + json.url + '">' + json.guide + '</a>';
         else
@@ -660,7 +662,7 @@ async function leave_action(json) {
         ws.close();
         disable_button();
         disable_sr();
-        clear('container');
+        //clear('container');
         break;
     //case 'set_cookie':
     //    document.cookie = json.cookie;

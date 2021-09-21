@@ -115,7 +115,7 @@ if __name__ == '__main__':
     #device = torch.device('cuda')
     train_batch_size = 64#1024
 
-    numEpochs = 10
+    numEpochs = 30
     learning_rate = 1.0
 
     x_train = torch.tensor(pd.read_csv('train.vector.txt', sep='\t', header=None).to_numpy(), dtype=torch.float)

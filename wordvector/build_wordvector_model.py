@@ -44,7 +44,8 @@ model.save('wordvector.model')
 wv_model = Word2Vec.load('wordvector.model')
 wv_model.wv.save('wv.model')
 model = KeyedVectors.load('wv.model')
-model.most_similar(positive='父')
-model.similarity('人','父')
-model.similarity('物','父')
+
+print(model.most_similar(positive='父'))
+print(model.similarity('人','父'))
+print(model.similarity('物','父'))
 

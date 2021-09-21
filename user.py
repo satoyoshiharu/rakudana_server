@@ -386,10 +386,9 @@ class Initial(Scene):
 
         json_text = ''
         if self.user.invoker == 'rakudana_app':
-            display = 'シニアがスマホを使うときに、苦手なことをお手伝いします。やりたいことをお話ください。' +\
-                '例：「何ができるの？」、「佐藤さんにショートメッセージ」'
+            display = '<h3>シニアがスマホを使うときに、苦手なことをお手伝いします。<br>やりたいことをお話しください。</h3>'
             json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}",' +\
-                        '"suggestions":["？","安全診断"]' + '}'
+                        '"suggestions":["ヘルプ"]' + '}'
         elif self.user.org == 'genkikai':
             if self.user.role == 'admin':
                 json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
@@ -416,9 +415,9 @@ class Initial(Scene):
         if self.user.invoker == 'rakudana_app':
             print('Initial.interpret > rakudana_app case')
             if intent == com.INTENT_HELP or selection == '1':
-                await self.feedback("私が何ができるかということですね？", 0)
-                return RakudanaHelp(self.user)
-            elif intent == com.INTENT_CHECK_SECURITY or selection == '2':
+                await self.feedback("ヘルプですね？", 0)
+                return RakudanaHelp(self.user, self)
+            elif intent == com.INTENT_CHECK_SECURITY: # or selection == '2':
                 await self.feedback("安全度診断ですね", 0)
                 return await self.act_check_security()
             elif intent == com.INTENT_TEL:
@@ -479,6 +478,7 @@ class Initial(Scene):
             elif intent == com.INTENT_GENKIKAI_MANAGE_RESERVATIONS:
                 await self.feedback("げんきかいの予約管理ですね", 0)
                 return Record(self.user, None)
+
             elif intent == com.INTENT_OTHERS:
                 return await self.act_others(json_dict)
 
@@ -533,8 +533,14 @@ class Initial(Scene):
 
     async def act_others(self, json_dict):
         print('act_others')
-        query = json_dict['recognized']
-        return f'apps://rakudana.com/client_app/search?query={query}'
+        query = urllib.parse.quote(json_dict['recognized'])
+        url = 'https://www.google.co.jp/search'
+        await self.send_str('{' + f'"action":"goto_url","url":"{url}?q={query}&oq={query}&hl=ja&ie=UTF-8"' + '}') # go directly
+        # url = f'apps://rakudana.com/client_app/search?query={query}'
+        # guide = 'ここをクリックして下さい'
+        # json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"{guide}"' + '}'
+        # print(f'act_make_call > json_text: {json_text} -> browser')
+        # await self.send_str(json_text)
         return None
 
     async def act_make_call(self):
@@ -645,6 +651,7 @@ class Initial(Scene):
         print('act_open_map')
         # invoke Android google map app.
         # https://www.google.co.jp/map/?hl=ja will not provide mike option
+        # In addition, let android analyze from/to parsing
         url = f'apps://rakudana.com/client_app/map'
         q = urllib.parse.quote(query)
         json_text = '{' + f'"action":"invoke_app","url":"{url}?q={q}"' + '}'
@@ -653,31 +660,33 @@ class Initial(Scene):
         return None
 
 
-    async def act_open_news(self, query):
+    async def act_open_news(self):
         print('act_open_news')
-        # direct to hhttps://www.smartnews.com/ja/ or invoke the app
-        url = f'apps://rakudana.com/client_app/news'
-        json_text = '{' + f'"action":"invoke_app","url":"{url}' + '}'
-        print(f'act_make_call > json_text: {json_text} -> browser')
-        await self.send_str(json_text)
+        url = 'https://news.yahoo.co.jp/'
+        await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}') # go directly
+        # direct to https://www.smartnews.com/ja/ or invoke the app
+        # url = f'apps://rakudana.com/client_app/news'
+        # json_text = '{' + f'"action":"invoke_app","url":"{url}' + '}'
+        # print(f'act_make_call > json_text: {json_text} -> browser')
+        # await self.send_str(json_text)
         return None
 
 
-    async def act_open_weather(self, query):
+    async def act_open_weather(self):
         print('act_open_weather')
         # direct to hhttps://www.weathernews.jp
-        url = f'https://www.weathernews.jp/'
-        json_text = '{' + f'"action":"goto_url","url":"{url}' + '}'
+        url = 'https://www.weathernews.jp/'
+        json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
         return None
 
 
-    async def act_open_calculator(self, query):
+    async def act_open_calculator(self):
         print('act_open_calculator')
         # direct to hhttps://www.weathernews.jp
         url = f'https://www.webdentaku.com/'
-        json_text = '{' + f'"action":"goto_url","url":"{url}' + '}'
+        json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
         return None
@@ -779,15 +788,13 @@ class RakudanaHelp(Scene):
 
     async def prompt(self):
         print('RakudanaHelp.prompt')
-        text = 'シニアがスマホを使うときに、苦手なことをお手伝いします。'
-        speech = 'シニアがスマホを使うときに、苦手なことをお手伝いします。'
-        display = '<br>できること：<br>・電話をかける<br>・緊急電話<br>・ショートメッセージを送る<br>・LINEでメッセージを送る' +\
-            '<br>・スマホ利用の安全度診断' +\
-            '<br>・プライベートなメモの保存' +\
-            '<br>・QRコードでページをホーム画面に置く' +\
-            '<br>・NPOげんきかい:予約確認、お知らせ、履歴・予約管理'
+        text = 'シニアがスマホを使うことをお手伝いします。'
+        speech = 'シニアがスマホを使うことをお手伝いします。やりたいことを、しゃべって下さい。'
+        display = '<br>例：電話をかける、ショートメッセージを送る、手書きメモを保存する、' +\
+                    'お気に入りページをホーム画面に置く、今日の天気は、電卓、近くのコンビニはどこ、ニュースを読む、' +\
+                    'インターネットの意味は、東急バスの時刻表、大根のレシピ、電球の値段比較、NPOげんきかいの予約確認、など。'
         json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' +\
-                    '"suggestions":["詳細","戻る"]'+ '}'
+                    ',"suggestions":["詳細","戻る"]'+ '}'
         await self.send_str(json_text)
         return
 
@@ -801,7 +808,7 @@ class RakudanaHelp(Scene):
             await self.feedback("終了します", 1)
             return None
         if any(['詳細' in m['surface'] for m in morphs]) or selection == '1':
-            await self.feedback("詳細案内ページへ飛びます。", 2)
+            await self.feedback("詳細を案内するページへ飛びます。", 2)
             url = 'https://yo-sato.com/rakudana/index.html'
             await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
             return None

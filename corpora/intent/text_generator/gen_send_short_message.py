@@ -4,7 +4,7 @@ sys.path.append(os.path.join('/home/ysato/PycharmProjects/rakudana/corpora/inten
 import personalname as pn
 
 CONTACT_MARKER = ['','','に','へ']
-SEND_INTENT = ['','送る','','送信','送信する','する','して']
+SEND_INTENT = ['送る','送りたい','送れ','','送信','送信する','送信したい','送信したい','する','して','したい']
 OBJ = ['メッセージ','メッセ','SMS','ショートメッセージ','SMSメッセージ']
 OBJ_MARKER = ['','を']
 MODE = ['','','','すぐに','いまから','ちょっと']

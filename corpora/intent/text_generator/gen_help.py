@@ -1,14 +1,14 @@
 import random
 
-PERSONA = ['あなた','これ']
-HELP_INTENT = ['何ができるの','何できる','何ができる','どうすればいいか教えて','何ができるか教えて','何ができるか教えて',
-               '何ができるか教えて下さい','何できるか教えて下さい','何ができますか']
-MOOD = ['えーっと','んー','えー','あの']
+PERSONA = ['あなた、','これ、','このアプリ、','','','','','']
+HELP_INTENT = ['ヘルプ','ヘルプして','ヘルプ出して',
+               '何ができるの','何できる','何ができる','どうすればいいか教えて','何ができるか教えて','何ができるか教えて',
+               '何ができるか教えて下さい','何できるか教えて下さい','何ができますか','何ができるかわからない',
+               '使い方','使い方は','使い方を教えて','どう使うの','どう使えばいいの','使い方わからない','使い方教えて',
+               '使い方を教えて下さい','どう使えばいいか教えて下さい']
+MOOD = ['えーっと、','んー、','えー、','あの、','','','','','']
 
 if __name__ == "__main__":
     with open('../texts/help.txt', 'w') as f:
-        for i in range(300):
-            f.write(f'{random.choice(HELP_INTENT)}\n')
-            f.write(f'{random.choice(PERSONA)}、{random.choice(HELP_INTENT)}\n')
-            f.write(f'{random.choice(MOOD)}、{random.choice(HELP_INTENT)}\n')
-            f.write(f'{random.choice(MOOD)}、{random.choice(PERSONA)}、{random.choice(HELP_INTENT)}\n')
+        for i in range(500):
+            f.write(f'{random.choice(MOOD)}{random.choice(PERSONA)}{random.choice(HELP_INTENT)}\n')

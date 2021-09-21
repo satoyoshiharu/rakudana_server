@@ -31,7 +31,7 @@ RECVJSON_TIMEOUT = 30 #sec
 GC_INTERVAL = 60*15 # garbage collection runs
 PROCESS_TIMEOUT = 60*20 # kill process over this elapsed time
 
-WORD_VECTOR_SIZE = 64 # 128
+WORD_VECTOR_SIZE = 128 # 64
 
 
 
