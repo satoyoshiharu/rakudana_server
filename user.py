@@ -139,6 +139,11 @@ async def browser_handler(request):
     sys.exit(0)
     #return user.ws
 
+# end of conversation. It follows in browser AppLink or location.replace(url).
+# User operation may be needed, and don't clea up DOM by finish command.
+SCENE_LEAVE = 0
+# end of conversation. End of Scenes. Clean up DOM by finish command.
+SCENE_TERMINATE = -1
 
 class ConversationModel:
 
@@ -166,12 +171,16 @@ class ConversationModel:
                 print(f'ConversationMolde.loop > scene: {scene.__class__.__name__} interpret')
                 scene = await scene.interpret()
                 # (1) explicit termination (2) timeout error (idle >10 minutes)
-                if scene is None:
-                    print('ConversationMolde.loop > scene is None')
+                if scene is SCENE_TERMINATE:
+                    print('ConversationMolde.loop > scene is Terminate')
                     #await asyncio.sleep(10000)
                     json_text = '{' + f'"action":"finish"' + '}'
                     if not self.user.ws.closed:
                         await self.user.ws.send_str(json_text)
+                    self.user.pipe.send('finish$')
+                    break
+                elif scene is SCENE_LEAVE:
+                    print('ConversationMolde.loop > scene is Terminate')
                     self.user.pipe.send('finish$')
                     break
                 self.user.dialog_history.append(scene)
@@ -181,9 +190,9 @@ class ConversationModel:
             print(f'ConversationModel.loop > exception: {e}')
             print(traceback.format_exc())
 
-        json_text = '{' + '"action":"finish"' + '}'
-        if not self.user.ws.closed:
-            await self.user.ws.send_str(json_text)
+        #json_text = '{' + '"action":"finish"' + '}'
+        #if not self.user.ws.closed:
+        #    await self.user.ws.send_str(json_text)
         self.user.app_close_flag = True
         return  # -> finish
 
@@ -323,6 +332,7 @@ class Scene:
             print('sending > exception {}'.format(e))
             print(traceback.format_exc())
 
+    @staticmethod
     async def prompt_and_interpret(self, scene):
         await scene.prompt()
         if scene.counter > 5:
@@ -388,7 +398,7 @@ class Initial(Scene):
         if self.user.invoker == 'rakudana_app':
             display = '<h3>シニアがスマホを使うときに、苦手なことをお手伝いします。<br>やりたいことをお話しください。</h3>'
             json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}",' +\
-                        '"suggestions":["ヘルプ"]' + '}'
+                        '"suggestions":["ヘルプ","終了"]' + '}'
         elif self.user.org == 'genkikai':
             if self.user.role == 'admin':
                 json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
@@ -405,19 +415,22 @@ class Initial(Scene):
 
         if self.counter > 5:
             await self.feedback("終了します",1)
-            return None
+            return SCENE_TERMINATE
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             print('Initial.interpret > decode_response failed')
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         if self.user.invoker == 'rakudana_app':
             print('Initial.interpret > rakudana_app case')
             if intent == com.INTENT_HELP or selection == '1':
                 await self.feedback("ヘルプですね？", 0)
                 return RakudanaHelp(self.user, self)
-            elif intent == com.INTENT_CHECK_SECURITY: # or selection == '2':
+            elif any(['終了' in m['surface'] for m in morphs]) or selection == '2':
+                await self.feedback("終了します", 0)
+                return SeeYou(self.user)
+            elif intent == com.INTENT_CHECK_SECURITY:
                 await self.feedback("安全度診断ですね", 0)
                 return await self.act_check_security()
             elif intent == com.INTENT_TEL:
@@ -529,7 +542,7 @@ class Initial(Scene):
         print('act_check_security')
         url = 'https://npogenkikai.net/security-check-quize/'
         await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
-        return None
+        return SCENE_LEAVE
 
     async def act_others(self, json_dict):
         print('act_others')
@@ -541,14 +554,14 @@ class Initial(Scene):
         # json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"{guide}"' + '}'
         # print(f'act_make_call > json_text: {json_text} -> browser')
         # await self.send_str(json_text)
-        return None
+        return SCENE_LEAVE
 
     async def act_make_call(self):
 
-        def match(person, datalist):
-            print(f'act_make_call.match > person {person} vs datalist {datalist}')
+        def match(prsn, datalist):
+            print(f'act_make_call.match > prsn {prsn} vs datalist {datalist}')
             telnum = '0'
-            match = [d for d in datalist if d[0] == person.name]
+            match = [d for d in datalist if d[0] == prsn.name]
             print(f'act_make_call.match > match {match}')
             if len(match) > 0 and match != []:
                 telnum = match[0][1]
@@ -569,33 +582,33 @@ class Initial(Scene):
 
         if len(self.user.ner.entitylist) > 0:
 
-            persons = [p for p in self.user.ner.entitylist if isinstance(p, Person) ]
+            persons = [p for p in self.user.ner.entitylist if isinstance(p, Person)]
             print(f'act_make_call > persons:{persons}')
             digits = [d for d in self.user.ner.entitylist if isinstance(d, Digits)]
             print(f'act_make_call > digits:{digits}')
             if len(persons) > 0:
                 person = persons[0]
-                print(f'act_make_call > person {person.name} named')
+                print(f'act_make_call > prsn {person.name} named')
 
                 if len(self.user.contacts) > 0:
                     telnum = match(person, self.user.contacts)
                     if telnum != '0':
-                        print(f'act_make_call > person matched with one of registered contacts {telnum}')
+                        print(f'act_make_call > prsn matched with one of registered contacts {telnum}')
                         return MakeCallToConfirm(self.user, person, telnum)
 
                 print(f'act_make_call > no match with contacts')
                 if len(self.user.callrecs) > 0:
                     telnum = match(person, self.user.callrecs)
                     if telnum != '0':
-                        print(f'act_make_call > person matched with one of call records {telnum}')
+                        print(f'act_make_call > prsn matched with one of call records {telnum}')
                         # ask confirmation to directly dial it, and show option to create shortcut button.
                         return MakeCallToARecord(self.user, person, telnum)
 
-                print(f'act_make_call > person named but neither matched with registered contacts nor records')
+                print(f'act_make_call > prsn named but neither matched with registered contacts nor records')
                 # fall-through to initial treatment : return MakeCallToContacts(self.user)
                 await invoke_client(make_url_with_name(),
                                     "ここを押してください。連絡先を選んで電話します。")
-                return None
+                return SCENE_LEAVE
 
             elif len(digits) > 0:
                 digit = digits[0].value
@@ -610,22 +623,22 @@ class Initial(Scene):
             # url = f'apps://rakudana.com/client_app/make_call?contact={name}'
             await invoke_client(make_url_with_name(),
                                 "ここを押してください。連絡先を選んで電話します。")
-            return None
+            return SCENE_LEAVE
 
         else:
-            print(f'act_make_call > neither name nor number person voiced')
+            print(f'act_make_call > neither name nor number prsn voiced')
             if len(self.user.contacts) > 0:
                 return MakeCallToContacts(self.user)
             else:
                 await invoke_client('apps://rakudana.com/client_app/make_call',
                                     "ここを押してください。連絡先を選んで電話します。")
-                return None
+                return SCENE_LEAVE
 
         # json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
         # print(f'act_make_call > json_text: {json_text} -> browser')
         # await self.send_str(json_text)
         #await invoke_client(url)
-        #return None
+        #return SCENE_LEAVE
 
     async def act_save_memo(self):
         print('act_save_memo')
@@ -635,7 +648,7 @@ class Initial(Scene):
         json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"{guide}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
-        return None
+        return SCENE_LEAVE
 
     async def act_put_page_shortcut(self):
         print('act_save_memo')
@@ -645,7 +658,7 @@ class Initial(Scene):
         json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"{guide}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
-        return None
+        return SCENE_LEAVE
 
     async def act_open_map(self, query):
         print('act_open_map')
@@ -657,8 +670,7 @@ class Initial(Scene):
         json_text = '{' + f'"action":"invoke_app","url":"{url}?q={q}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
-        return None
-
+        return SCENE_LEAVE
 
     async def act_open_news(self):
         print('act_open_news')
@@ -669,8 +681,7 @@ class Initial(Scene):
         # json_text = '{' + f'"action":"invoke_app","url":"{url}' + '}'
         # print(f'act_make_call > json_text: {json_text} -> browser')
         # await self.send_str(json_text)
-        return None
-
+        return SCENE_LEAVE
 
     async def act_open_weather(self):
         print('act_open_weather')
@@ -679,8 +690,7 @@ class Initial(Scene):
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
-        return None
-
+        return SCENE_LEAVE
 
     async def act_open_calculator(self):
         print('act_open_calculator')
@@ -689,12 +699,12 @@ class Initial(Scene):
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
         await self.send_str(json_text)
-        return None
-
+        return SCENE_LEAVE
 
     async def id2person(self, userid):
         print(f'id2person>{userid}')
-        if userid == '': return None
+        if userid == '':
+            return None
         json_contents = \
             json.loads(names.nametable[(names.nametable['id'] == userid)]
                        .to_json(orient="records", force_ascii=False))
@@ -722,14 +732,14 @@ class Initial(Scene):
                 persons = await self.prompt_and_interpret(nm)
                 if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
                 if len(persons) == 1:
                     self.user.person = persons[0]
         #await self.feedback("予約登録状況を表示します。",2)
         url = 'https://npogenkikai.net/reservations?id=' + self.user.person.id
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         await self.send_str(json_text)
-        return None
+        return SCENE_LEAVE
 
     async def act_mycode(self):
         print('act_mycode')
@@ -742,19 +752,19 @@ class Initial(Scene):
                 persons = await self.prompt_and_interpret(nm)
                 if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
                 if len(persons) == 1: self.user.person = persons[0]
         #return ShowMyCode(self.user)
         #await self.feedback("個人コードを表示します。",2)
         url = 'https://npogenkikai.net/myqrcode?id=' + self.user.person.id
         await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
-        return None
+        return SCENE_LEAVE
 
     async def act_news(self):
         print('act_news')
         url = 'https://npogenkikai.net/news'
         await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
-        return None
+        return SCENE_LEAVE
         #return ViewInlineFrame(self.user, URL)
 
     async def act_mypoint(self):
@@ -768,14 +778,14 @@ class Initial(Scene):
                 persons = await self.prompt_and_interpret(nm)
                 if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
                 if len(persons) == 1:
                     self.user.person = persons[0]
 
         url = 'https://npogenkikai.net/mypoints2?id=' + self.user.person.id
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         await self.send_str(json_text)
-        return None
+        return SCENE_LEAVE
         #return ViewInlineFrame(self.user, url)
 
 
@@ -802,16 +812,16 @@ class RakudanaHelp(Scene):
         print('RakudanaHelp.interpret')
         if self.counter > 5:
             await self.feedback("終了します",1)
-            return None
+            return SCENE_TERMINATE
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['詳細' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("詳細を案内するページへ飛びます。", 2)
             url = 'https://yo-sato.com/rakudana/index.html'
             await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
-            return None
+            return SCENE_LEAVE
         elif any([m['surface'].startswith('戻') for m in morphs]) or selection == '2':
             await self.feedback("戻ります。", 0)
             return self.parent
@@ -844,11 +854,11 @@ class Secondary(Scene):
         print('Secondary.interpret')
         if self.counter > 5:
             await self.feedback("終了します",1)
-            return None
+            return SCENE_TERMINATE
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['登録' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("登録します。", 0)
             nm = AskName(self.user, self)
@@ -856,7 +866,7 @@ class Secondary(Scene):
                 persons = await self.prompt_and_interpret(nm)
                 if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
                 if persons != [] and len(persons) == 1:
                     self.user.person = persons[0]
             # store ID in client browser as Cookie
@@ -894,16 +904,16 @@ class CallPoliceConfirm(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
             # url = 'tel://110'
-            url = 'tel://09029355792' #for test
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。100番に電話します"' + '}'
+            url = 'tel://09029355792' # for test
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここをタップで100番に電話します"' + '}'
             print(f'CallPoliceConfirm > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif intent == com.INTENT_CANCEL or selection == '2':
-            return None
+            return SCENE_TERMINATE
 
 
 class CallEmergencyConfirm(Scene):
@@ -922,16 +932,16 @@ class CallEmergencyConfirm(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
             # url = 'tel://119'
-            url = 'tel://09029355792' #for test
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。119番に電話します。"' + '}'
+            url = 'tel://09029355792' # for test
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここをタップで119番に電話します。"' + '}'
             print(f'CallPoliceConfirm > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif intent == com.INTENT_CANCEL or selection == '2':
-            return None
+            return SCENE_TERMINATE
 
 
 class MakeCallToConfirm(Scene):
@@ -955,22 +965,22 @@ class MakeCallToConfirm(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
             url = f'tel://{self.callto_number}'
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。呼び出します"' + '}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここをタップで呼び出します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif any(['別' in m['surface'] for m in morphs]) or selection == '2':
             name = self.callto_name
             url = f'apps://rakudana.com/client_app/make_call?contact={name}'
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。連絡先から電話します"' + '}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここをタップで連絡先から電話します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif intent == com.INTENT_CANCEL or selection == '3':
-            return None
+            return SCENE_TERMINATE
 
 
 class MakeCallToNumberConfirm(Scene):
@@ -993,15 +1003,15 @@ class MakeCallToNumberConfirm(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
             url = f'tel://{self.callto_number}'
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。{self.callto_number}に電話します"' + '}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここをタップで{self.callto_number}に電話します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif intent == com.INTENT_CANCEL or selection == '2':
-            return None
+            return SCENE_TERMINATE
 
 
 class MakeCallToARecord(Scene):
@@ -1025,7 +1035,7 @@ class MakeCallToARecord(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['呼出' in m['surface'] for m in morphs]) or selection == '1':
             url = f'tel://{self.callto_number}'
             json_text = \
@@ -1035,24 +1045,24 @@ class MakeCallToARecord(Scene):
                 + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif any(['別' in m['surface'] for m in morphs]) or selection == '2':
             name = self.callto_name
             url = f'apps://rakudana.com/client_app/make_call?contact={name}'
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。連絡先から電話します"' + '}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここをタップで連絡先から電話します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif any(['登録' in m['surface'] for m in morphs]) or selection == '3':
             # record the contact
             self.user.contacts.append([self.callto_name,self.callto_number])
             await self.send_str_to_app_websocket(
-                ','.join([ c[0] + ':' + c[1] for c in self.user.contacts ])
+                ','.join([c[0] + ':' + c[1] for c in self.user.contacts])
             )
             # show contact buttons
             return MakeCallToContacts(self.user)
         elif intent == com.INTENT_CANCEL or selection == '4':
-            return None
+            return SCENE_TERMINATE
 
 
 class MakeCallToContacts(Scene):
@@ -1077,18 +1087,18 @@ class MakeCallToContacts(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         elif any(['別' in m['surface'] for m in morphs]) or selection == '1':
             url = f'apps://rakudana.com/client_app/make_call'
-            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここを押して下さい。連絡先から電話します"' + '}'
+            json_text = '{' + f'"action":"invoke_app","url":"{url}","guide":"ここをタップで連絡先から電話します"' + '}'
             print(f'MakeCallTo > json_text: {json_text} -> browser')
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
         elif any(['削除' in m['surface'] for m in morphs]) or selection == '2':
             print(f'MakeCallToContacts.interpret > delete selected')
             return DeleteContact(self.user, self)
         elif intent == com.INTENT_CANCEL or selection == '3':
-            return None
+            return SCENE_TERMINATE
 
 
 class DeleteContact(Scene):
@@ -1115,14 +1125,14 @@ class DeleteContact(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         elif intent == com.INTENT_CANCEL or selection == '0':
             print(f'EditContacts.interpret > finish selected')
             return MakeCallToContacts(self.user)
         elif selection != "" and selection != '0':
             self.user.contacts.pop(int(selection) - 1)
             await self.send_str_to_app_websocket(
-                ','.join([ c[0] +':' + c[1] for c in self.user.contacts ])
+                ','.join([c[0] + ':' + c[1] for c in self.user.contacts])
             )
             return MakeCallToContacts(self.user)
 
@@ -1142,7 +1152,7 @@ class SendShortMessageInput(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if len(morphs) > 0:
             print(f"SendShortMessageInput.interpret > {json_dict['recognized']}")
             return SendShortMessageConfirm(self.user, self, json_dict['recognized'])
@@ -1172,7 +1182,7 @@ class SendShortMessageConfirm(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS or intent == com.INTENT_CANCEL or selection == '3':
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         elif intent == com.INTENT_RETRY or selection == '2':
             return self.parent
         elif intent == com.INTENT_YES or selection == '1':
@@ -1181,7 +1191,7 @@ class SendShortMessageConfirm(Scene):
             json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
             print(json_text)
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
 
 
 class SendLineMessageInput(Scene):
@@ -1199,7 +1209,7 @@ class SendLineMessageInput(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if len(morphs) > 0:
             return SendLineMessageConfirm(self.user, self, json_dict['recognized'])
         else:
@@ -1228,7 +1238,7 @@ class SendLineMessageConfirm(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS or intent == com.INTENT_CANCEL or selection == '3':
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         elif intent == com.INTENT_RETRY or selection == '2':
             return self.parent
         elif intent == com.INTENT_YES or selection == '1':
@@ -1237,7 +1247,7 @@ class SendLineMessageConfirm(Scene):
             json_text = '{' + f'"action":"invoke_app","url":"{url}"' + '}'
             print(json_text)
             await self.send_str(json_text)
-            return None
+            return SCENE_LEAVE
 
 
 class AskName(Scene):
@@ -1468,18 +1478,18 @@ class AskDate(Scene):
             await self.feedback(f'{day.month}月{day.day}日ですね',0)
             return day
         else:
-            return None
+            return SCENE_TERMINATE
 
     async def interpret(self):
         print('askDate.interpret')
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
-            return None
+            return SCENE_TERMINATE
         else:
             if len(morphs) > 0:
                 return await self.parse_date(morphs)
             else:
-                return None
+                return SCENE_TERMINATE
 
 
 class AskAmPm(Scene):
@@ -1508,7 +1518,7 @@ class AskAmPm(Scene):
         print('AskAmPm.interpret')
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
-            return None
+            return SCENE_TERMINATE
         else:
             await self.parse_ampm(morphs, selection, self.day)
 
@@ -1538,11 +1548,11 @@ class Reserve(Scene):
         print('Reserve.interpret')
         if self.counter > 5:
             await self.feedback("終了します",0)
-            return None
+            return SCENE_TERMINATE
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['登録' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("予約の登録を行います", 0)
             self.operation = 'add'
@@ -1574,7 +1584,7 @@ class Reserve(Scene):
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(json_text)
         await self.send_str(json_text)
-        return None
+        return SCENE_LEAVE
 
     async def act_send_message(self):
         print('actSendMessage')
@@ -1584,13 +1594,13 @@ class Reserve(Scene):
             self.reservation.date = await self.prompt_and_interpret(dt)
             if dt.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
-                return None
+                return SCENE_TERMINATE
         ap = AskAmPm(self.user, self, self.reservation.date)
         while self.reservation.date.ampm == '':
             await self.prompt_and_interpret(ap)
             if ap.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
-                return None
+                return SCENE_TERMINATE
         return SendReservationMessageS(self.user, self)
 
 
@@ -1637,7 +1647,7 @@ class UpdateReservation(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         if self.reservation.date is None:
             dt = AskDate(self.user, self)
@@ -1646,7 +1656,7 @@ class UpdateReservation(Scene):
                 self.reservation.date = await self.prompt_and_interpret(dt)
                 if dt.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
         if self.reservation.date.ampm == '':
             ap = AskAmPm(self.user, self, self.reservation.date)
             await ap.parse_ampm(morphs,selection,self.reservation.date)
@@ -1654,7 +1664,7 @@ class UpdateReservation(Scene):
                 await self.prompt_and_interpret(ap)
                 if ap.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
         if not self.reservation.memberlist:
             nm = AskName(self.user, self)
             self.reservation.memberlist = await nm.parse_name(morphs)
@@ -1662,7 +1672,7 @@ class UpdateReservation(Scene):
                 self.reservation.memberlist = await self.prompt_and_interpret(nm)
                 if nm.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
 
         return ConfirmReservation(self.user,self)
 
@@ -1700,11 +1710,11 @@ class ConfirmReservation(Scene):
         print('ConfirmReservation.interpret')
         if self.counter > 5:
             await self.feedback("終了します", 0)
-            return None
+            return SCENE_TERMINATE
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         if selection == '1' or any(['はい' in m['surface'] for m in morphs]):
             return await self.act_update_reservation()
@@ -1758,7 +1768,7 @@ class PostReservation(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any([m['surface'].startswith('同') for m in morphs]) or \
                 any([m['surface'].startswith('続') for m in morphs]) or selection == '1':
             await self.feedback("同じ時間枠で予約管理を続けます", 0)
@@ -1767,7 +1777,7 @@ class PostReservation(Scene):
             return Reserve(self.user, reservation)
         else:
             await self.feedback("終了します",1)
-            return None
+            return SCENE_TERMINATE
 
 
 class SendReservationMessageS(Scene):
@@ -1813,11 +1823,11 @@ class SendReservationMessageS(Scene):
         print('SendReservationMessageS.interpret')
         if self.counter > 5:
             await self.feedback("終了します",1)
-            return None
+            return SCENE_TERMINATE
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any(['送信' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("送信します",0)
             return await self.act_send_message()
@@ -1907,7 +1917,7 @@ class Record(Scene):
         print('cord.interpret')
         if self.counter > 5:
             await self.feedback("終了します", 0)
-            return None
+            return SCENE_TERMINATE
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
@@ -1942,7 +1952,7 @@ class Record(Scene):
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(json_text)
         await self.send_str(json_text)
-        return None
+        return SCENE_LEAVE
 
 
 class Reservation2Record(Scene):
@@ -1965,7 +1975,7 @@ class Reservation2Record(Scene):
         sts, json_dict, morphs, selection = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         dt = AskDate(self.user, self)
         date = await dt.parse_date(morphs)
@@ -1973,7 +1983,7 @@ class Reservation2Record(Scene):
             date = await self.prompt_and_interpret(dt)
             if dt.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
-                return None
+                return SCENE_TERMINATE
 
         return ConfirmReservation2Record(self.user, date)
 
@@ -1998,7 +2008,7 @@ class ConfirmReservation2Record(Scene):
         sts, json_dict, morphs, selection = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         if any(['コピー' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("コピーします",0)
@@ -2011,7 +2021,7 @@ class ConfirmReservation2Record(Scene):
             await self.feedback("コピーしました", 0)
         elif any(['キャンセル' in m['surface'] for m in morphs]) or selection == '2':
             await self.feedback("キャンセルします",0)
-        return None
+        return SCENE_TERMINATE
 
 
 class UpdateRecord(Scene):
@@ -2058,7 +2068,7 @@ class UpdateRecord(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         if self.visit.date is None:  # date maybe already filled
             dt = AskDate(self.user, self)
@@ -2067,15 +2077,16 @@ class UpdateRecord(Scene):
                 self.visit.date = await self.prompt_and_interpret(dt)
                 if dt.error == com.ERR_TIMEOUT:
                     await self.feedback("終了します", 0)
-                    return None
+                    return SCENE_TERMINATE
         nm = AskName(self.user, self)
         self.visit.memberlist = await nm.parse_name(morphs)
         while not self.visit.memberlist:
             self.visit.memberlist = await self.prompt_and_interpret(nm)
             if nm.error == com.ERR_TIMEOUT:
                 await self.feedback("終了します", 0)
-                return None
-            if self.error == com.ERR_TIMEOUT: return None
+                return SCENE_TERMINATE
+            if self.error == com.ERR_TIMEOUT:
+                return SCENE_TERMINATE
 
         return ConfirmRecord(self.user, self)
 
@@ -2109,12 +2120,12 @@ class ConfirmRecord(Scene):
 
         if self.counter > 5:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
 
         if selection == '1' or any(['はい' in m['surface'] for m in morphs]):
             return await self.act_update_record()
@@ -2166,7 +2177,7 @@ class PostRecord(Scene):
         sts, json_dict, morphs, selection, intent = await self.decode_response()
         if sts != com.SUCCESS:
             await self.feedback("終了します", 1)
-            return None
+            return SCENE_TERMINATE
         if any([m['surface'].startswith('同') for m in morphs]) or any(
                 [m['surface'].startswith('続') for m in morphs]) or selection == '1':
             await self.feedback("同じ時間枠で来場記録管理を続けます", 0)
@@ -2175,31 +2186,7 @@ class PostRecord(Scene):
             return Record(self.user, visit)
         else:
             await self.feedback("終了します", 1)
-            return None
-
-
-# class ViewInlineFrame(Scene):
-#
-#     def __init__(self, usr, url):
-#         super().__init__(usr)
-#         self.url = url
-#
-#     async def prompt(self):
-#         print('ViewInlineFrame.prompt')
-#         jsonText = '{' + f'"view":"{self.url}", suggestions":["戻る","終了"]' + '}'
-#         return
-#
-#     async def interpret(self):
-#         print('ViewInlineFrame')
-#         sts, jsonDict, morphs, selection, intent = await self.decode_response()
-#         if sts != com.SUCCESS:
-#             await self.feedback("終了します", 1)
-#             return None
-#         if any([m['surface'].startswith('戻') for m in morphs]) or selection == 2:
-#             await self.feedback("戻ります", 0)
-#         else:
-#             await self.feedback("終了します", 1)
-#             return None
+            return SCENE_TERMINATE
 
 
 class SeeYou(Scene):
@@ -2216,7 +2203,7 @@ class SeeYou(Scene):
         await asyncio.sleep(2)
         #jsonText = '{' + f'"action":"finish"'+'}'
         #await self.sendStr(jsonText)
-        return None
+        return SCENE_TERMINATE
 
 
 async def close_websockets():

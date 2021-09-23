@@ -621,48 +621,51 @@ async function leave_action(json) {
     // On Safari, location.href doesn't work
     // http://wawawa12345.hatenablog.com/entry/2019/03/11/224034
     let ctn = document.getElementById('container');
-    ctn.style = "display: grid; grid-template: 30vh 30vh 30vh / 10% 80% 10%;"
+    ctn.style = "display: grid; grid-template: 30vh 30vh 30vh / 20% 60% 20%;"
     let [display_box, display_cell] = newBox("display");
     display_box.style = 'grid-column:2/3; grid-row:2/3;';
     display_cell.style = "text-align:center; vertical-align:middle; font-size:3rem; margin 20pt; border-width:20pt; border-style:outset; border-color:light-gray gray light-gray gray; background-color:#c6d5ee7e;";
     display_cell.addEventListener('onclick', async function(event) {
         display_cell.style.backgroundColor = "gray";
     });
+    let a = document.createElement('a');
+    ws.close();
+    disable_sr();
+
     switch (json.action) {
     case 'goto_url':
         console.log('leave_action > handles goto_url');
+
         while (ctn != null && ctn.firstChild != null) { ctn.removeChild(ctn.firstChild); }
-        let a = document.createElement('a');
-        display_cell.innerHTML = '<a href="' + json.url + '">移動しないときはここをタップ</a>';
+        display_cell.innerHTML = '<a href="' + json.url + '"><h3>移動しないときはここをタップ</h3></a>';
         ctn.appendChild(display_box);
+
         a.href = json.url;
         a.click();
-        //location.href = json.url;
-        location.replace(json.url)
+        location.replace(json.url);
+
         break;
     case 'invoke_app':
         console.log('leave_action > handles invoke_action');
+
         while (ctn != null && ctn.firstChild != null) { ctn.removeChild(ctn.firstChild); }
         // NOTE: Chrome requires human operation to invoke app link
         if ('guide' in json)
-            display_cell.innerHTML='<a href="' + json.url + '">' + json.guide + '</a>';
+            display_cell.innerHTML='<a href="' + json.url + '"><h3>' + json.guide + '</h3></a>';
         else
-            display_cell.innerHTML='<a href="' + json.url + '">ここをタップ</a>';
-        ctn.appendChild(display_box)
-        //a.href = json.url;
-        //a.click();
-        //location.href = json.url;
+            display_cell.innerHTML='<a href="' + json.url + '"><h3>ここをタップ</h3></a>';
+        ctn.appendChild(display_box);
+
+        a.href = json.url;
+        a.click();
+        location.replace(json.url);
+
         break;
-    //case 'send':
-    //    Send();
-    //    break;
     case 'finish':
         console.log('leave_action > handles finish');
-        //ws.send('done');
-        ws.close();
-        disable_button();
-        disable_sr();
-        //clear('container');
+
+        clear('container');
+        window.close();
         break;
     //case 'set_cookie':
     //    document.cookie = json.cookie;
