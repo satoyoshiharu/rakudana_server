@@ -17,6 +17,8 @@ import sentencepiece as spm
 import logging
 from gensim.models.word2vec import Word2Vec, PathLineSentences
 import os
+import config
+import MeCab
 
 DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 
@@ -33,8 +35,13 @@ def strip_spacemark(inputtokenlist):
 #
 #　Create tokens (word broken texts)
 #
-sp = spm.SentencePieceProcessor()
-sp.Load("../tokenizer/sentencepiece.model")
+if config.TOKENIZER == config.SENTENCE_PIECE:
+    sp = spm.SentencePieceProcessor()
+    sp.Load("../tokenizer/sentencepiece.model")
+elif config.TOKENIZER == config.MECAB:
+    breaker = MeCab.Tagger(r"-O wakati -d /var/lib/mecab/dic/ipadic-utf8/")
+
+
 for src in glob.glob(DATA_FOLDER + "/texts/*"):
     # 3. ファイルをひとつずつ処理していく。
     # src = "articles/AA/wiki_00"
@@ -46,8 +53,10 @@ for src in glob.glob(DATA_FOLDER + "/texts/*"):
         lines = f.read().splitlines()
         for line in lines:
             if len(line)>0:
-                word_break = sp.EncodeAsPieces(line)
-                word_break = strip_spacemark(word_break)
-                words = " ".join(word_break)
+                if config.TOKENIZER == config.SENTENCE_PIECE:
+                    word_break = strip_spacemark(sp.EncodeAsPieces(line))
+                    words = " ".join(word_break)
+                elif config.TOKENIZER == config.MECAB:
+                    words = breaker.parse(line).replace('\n','')
                 sentences.append(words)
         print(*sentences, sep="\n", file=codecs.open(dst, 'w', 'utf-8'))

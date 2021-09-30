@@ -332,7 +332,6 @@ class Scene:
             print('sending > exception {}'.format(e))
             print(traceback.format_exc())
 
-    @staticmethod
     async def prompt_and_interpret(self, scene):
         await scene.prompt()
         if scene.counter > 5:
@@ -398,7 +397,7 @@ class Initial(Scene):
         if self.user.invoker == 'rakudana_app':
             display = '<h3>シニアがスマホを使うときに、苦手なことをお手伝いします。<br>やりたいことをお話しください。</h3>'
             json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}",' +\
-                        '"suggestions":["ヘルプ","終了"]' + '}'
+                        '"suggestions":["ヘルプ","ご意見","終了"]' + '}'
         elif self.user.org == 'genkikai':
             if self.user.role == 'admin':
                 json_text = '{' + f'"speech":"{speech}","text":"{text}",' +\
@@ -427,7 +426,9 @@ class Initial(Scene):
             if intent == com.INTENT_HELP or selection == '1':
                 await self.feedback("ヘルプですね？", 0)
                 return RakudanaHelp(self.user, self)
-            elif any(['終了' in m['surface'] for m in morphs]) or selection == '2':
+            elif any(['意見' in m['surface'] for m in morphs]) or selection == '2':
+                return GetFeedback(self.user, self)
+            elif any(['終了' in m['surface'] for m in morphs]) or selection == '3':
                 await self.feedback("終了します", 0)
                 return SeeYou(self.user)
             elif intent == com.INTENT_CHECK_SECURITY:
@@ -824,6 +825,83 @@ class RakudanaHelp(Scene):
             return SCENE_LEAVE
         elif any([m['surface'].startswith('戻') for m in morphs]) or selection == '2':
             await self.feedback("戻ります。", 0)
+            return self.parent
+        else:
+            self.error = com.INF_NO_TARGET_WORDS
+            self.counter += 1
+            await asyncio.sleep(1)
+            return self
+
+
+class GetFeedback(Scene):
+
+    def __init__(self, usr, parent):
+        super().__init__(usr)
+        self.user = usr
+        self.parent = parent
+
+    async def prompt(self):
+        print('GetFeedback.prompt')
+        text = 'フィードバックのご意見をお話し下さい。'
+        speech = 'フィードバックのご意見をお話し下さい。'
+        display = ''
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' +\
+                    ',"suggestions":["キャンセル"]'+ '}'
+        await self.send_str(json_text)
+        return
+
+    async def interpret(self):
+        print('GetFeedback.interpret')
+        if self.counter > 5:
+            await self.feedback("終了します",1)
+            return SCENE_TERMINATE
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
+            await self.feedback("終了します", 1)
+            return SCENE_TERMINATE
+        if len(morphs) > 0:
+            return ConfirmFeedback(self.user,self,json_dict["recognized"])
+        elif intent == com.INTENT_CANCEL or selection == '1':
+            return self.parent
+        else:
+            self.error = com.INF_NO_TARGET_WORDS
+            self.counter += 1
+            await asyncio.sleep(1)
+            return self
+
+
+class ConfirmFeedback(Scene):
+
+    def __init__(self, usr, parent, feedback):
+        super().__init__(usr)
+        self.user = usr
+        self.parent = parent
+        self.feedback = feedback
+
+    async def prompt(self):
+        print('ConfirmFeedback.prompt')
+        text = 'このフィードバックを送りますか？'
+        speech = 'このフィードバックを送りますか？'
+        display = self.feedback
+        json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + \
+                    ',"suggestions":["送信","キャンセル"]' + '}'
+        await self.send_str(json_text)
+        return
+
+    async def interpret(self):
+        print('ConfirmFeedback.interpret')
+        if self.counter > 5:
+            await self.feedback("終了します", 1)
+            return SCENE_TERMINATE
+        sts, json_dict, morphs, selection, intent = await self.decode_response()
+        if sts != com.SUCCESS:
+            await self.feedback("終了します", 1)
+            return SCENE_TERMINATE
+        if any(['送信' in m['surface'] for m in morphs]) or selection == '1':
+            await self.feedback("どうもありがとうございます。勉強させていただきます。", 0)
+            print(f'FEEDBACK: {json_dict["recognized"]}')
+            return Initial(self.user)
+        elif intent == com.INTENT_CANCEL or selection == '1':
             return self.parent
         else:
             self.error = com.INF_NO_TARGET_WORDS

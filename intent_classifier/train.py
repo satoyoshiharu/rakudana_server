@@ -19,14 +19,14 @@ class Net(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
         if False:
-            self.fc1 = nn.Linear(input_size, 128)
+            self.fc1 = nn.Linear(input_size, 64)
             nn.init.kaiming_normal_(self.fc1.weight)
-            self.fc2 = nn.Linear(128, 64)
+            self.fc2 = nn.Linear(64, 32)
             nn.init.kaiming_normal_(self.fc2.weight)
-            self.fc3 = nn.Linear(64, output_size)
+            self.fc3 = nn.Linear(32, output_size)
             nn.init.kaiming_normal_(self.fc3.weight)
-            self.bn1 = nn.BatchNorm1d(128)
-            self.bn2 = nn.BatchNorm1d(64)
+            self.bn1 = nn.BatchNorm1d(64)
+            self.bn2 = nn.BatchNorm1d(32)
         else:
             self.fc1 = nn.Linear(input_size, 64)
             nn.init.kaiming_normal_(self.fc1.weight)
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     train_batch_size = 64#1024
 
     numEpochs = 30
-    learning_rate = 1.0
+    learning_rate = 0.1
 
     x_train = torch.tensor(pd.read_csv('train.vector.txt', sep='\t', header=None).to_numpy(), dtype=torch.float)
     y_train = torch.tensor(pd.read_csv('train.label.txt', sep='\t', header=None).to_numpy(), dtype=torch.long)

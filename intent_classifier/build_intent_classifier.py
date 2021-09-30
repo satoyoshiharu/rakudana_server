@@ -4,12 +4,14 @@ import shlex
 import glob
 import config
 
-UPDATE_INTENT_TEXTS = True
-BUILD_TOKENIZER = True
-UPDATE_WORDBREAK_DATA = True
-BUILD_WORDVECTOR = True
-UPDATE_INTENT_DATA = True
+UPDATE_INTENT_TEXTS = False
+BUILD_TOKENIZER = False
+UPDATE_WORDBREAK_DATA = False
+BUILD_WORDVECTOR = False
+UPDATE_INTENT_DATA = False
 BUILD_INTENT_CLASSIFIER = True
+if config.TOKENIZER == config.MECAB:
+    BUILD_TOKENIZER = False
 
 DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 INTENT_DATA_FOLDER = '/home/ysato/PycharmProjects/rakudana/corpora/intent/texts'
@@ -44,7 +46,7 @@ if BUILD_WORDVECTOR:
 
 if UPDATE_INTENT_DATA:
     os.chdir(CUR_DIR)
-    print('### create intent classifier binary data...')
+    print('### create intent classifier binary data (word vector sum, category)...')
     exec(open('./create_training_data.py').read())
 
 if BUILD_INTENT_CLASSIFIER:

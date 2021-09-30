@@ -37,8 +37,11 @@ def init_languagemodel():
     tagger.parse('110番')  # preload dictionary
     tagger.parse('090-2935-5792')  # preload dictionary
 
-    tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load("./tokenizer/sentencepiece.model")
+    if config.TOKENIZER == config.SENTENCE_PIECE:
+        tokenizer = spm.SentencePieceProcessor()
+        tokenizer.Load("./tokenizer/sentencepiece.model")
+    elif config.TOKENIZER == config.MECAB:
+        tokenizer = MeCab.Tagger(r"-O wakati -d /var/lib/mecab/dic/ipadic-utf8/")
     print(f'tokenizer loaded: {type(tokenizer)}')
 
     wordvectors = KeyedVectors.load('./wordvector/wv.model')

@@ -33,6 +33,10 @@ PROCESS_TIMEOUT = 60*20 # kill process over this elapsed time
 
 WORD_VECTOR_SIZE = 128 # 64
 
+SENTENCE_PIECE = 1
+MECAB = 0
+TOKENIZER = MECAB
+
 
 
 

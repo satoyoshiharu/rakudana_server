@@ -5,6 +5,7 @@ import sentencepiece as spm
 from gensim.models import Word2Vec, KeyedVectors
 import com
 import config
+import MeCab
 
 def strip_spacemark(inputtokenlist):
   # print(inputtokenlist)
@@ -32,7 +33,10 @@ def embAvg(text, tokenizer, wvmodel):
 def embSum(text, tokenizer, wvmodel):
   #global model
   #print(f'text: {text}')
-  tokens = strip_spacemark(tokenizer.EncodeAsPieces(text))
+  if config.TOKENIZER == config.SENTENCE_PIECE:
+    tokens = strip_spacemark(tokenizer.EncodeAsPieces(text))
+  elif config.TOKENIZER == config.MECAB:
+    tokens = tokenizer.parse(text).replace('\n','').split(' ')
   #print(f'tokens: {tokens}')
   em = np.array([wvmodel[w] for w in tokens if w in wvmodel])
   if len(em)==0:
@@ -59,8 +63,12 @@ if __name__ == '__main__':
 
   DATA_FOLDER = '/media/sf_E_DRIVE/wikipedia'
 
-  sp = spm.SentencePieceProcessor()
-  sp.Load("../tokenizer/sentencepiece.model")
+  if config.TOKENIZER == config.SENTENCE_PIECE:
+    tokenizer = spm.SentencePieceProcessor()
+    tokenizer.Load("../tokenizer/sentencepiece.model")
+  elif config.TOKENIZER == config.MECAB:
+    tokenizer = MeCab.Tagger(r"-O wakati -d /var/lib/mecab/dic/ipadic-utf8/")
+
   model = KeyedVectors.load('../wordvector/wv.model')
 
   df_others = pd.read_csv('/media/sf_E_DRIVE/研究社/ej/kej.txt', header=None, sep='\t', names=['SENTENCE'])
@@ -83,7 +91,7 @@ if __name__ == '__main__':
   print(f"df:{df.shape}")
   labels = df['INTENT'].reset_index()
   labels = labels['INTENT']
-  vects = pd.DataFrame([embSum(text, sp, model) for text in df['SENTENCE']])
+  vects = pd.DataFrame([embSum(text, tokenizer, model) for text in df['SENTENCE']])
   print(f'labels:{labels.shape}, vects:{vects.shape}')
   data = pd.concat([labels, vects], axis=1)
   #
