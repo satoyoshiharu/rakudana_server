@@ -460,11 +460,14 @@ function setUpper(pCol) {
     message_box.style = 'grid-row: 1/2; grid-column:' + pCol + ';';
     mode_box.style = 'grid-row: 2/3; grid-column:' + pCol + '; background-color:#fffffc;';
     display_box.style = 'grid-row: 3/4; grid-column:' + pCol + '; background-color:#fffffc;';
+    //mode_box.style = 'grid-row: 2/3; grid-column:' + pCol + ';';
+    //display_box.style = 'grid-row: 3/4; grid-column:' + pCol + ';';
 };
 
 function addAction(fragment, num) {
     [box,cell] = newBox("action"+num.toString());
-    box.style = 'background-color:#fffffc; border-width:10pt;';
+    //box.style = 'background-color:#fffffc; border-width:10pt;';
+    box.style = 'border-width:10pt;';
     insertButton(cell,json.suggestions[num-1],"#c6d5ee7e",num); // cell in the box
     fragment.appendChild(box);
 };
@@ -501,6 +504,7 @@ function insertButton(cell, label, bg, i) {
     input.value = label;
     input.id = 'Button'+i;
     input.style = "width:90%; font-size:3rem; background-color:" + bg + "; border-width:10pt; cursol:pointer;";
+    //input.style = "width:90%; font-size:3rem; border-width:10pt; cursol:pointer;";
     input.setAttribute('onclick','Button'+i+'()');
     cell.appendChild(input);
 }
@@ -640,9 +644,12 @@ async function leave_action(json) {
         display_cell.innerHTML = '<a href="' + json.url + '"><h3>移動しないときはここをタップ</h3></a>';
         ctn.appendChild(display_box);
 
+        location.replace(json.url);
+
+        history.replaceState(null,null,"/www/doc/index.html");
+
         a.href = json.url;
         a.click();
-        location.replace(json.url);
 
         break;
     case 'invoke_app':
@@ -656,9 +663,12 @@ async function leave_action(json) {
             display_cell.innerHTML='<a href="' + json.url + '"><h3>ここをタップ</h3></a>';
         ctn.appendChild(display_box);
 
+        location.replace(json.url);
+
+        history.replaceState(null,null,"/www/doc/index.html");
+
         a.href = json.url;
         a.click();
-        location.replace(json.url);
 
         break;
     case 'finish':
@@ -777,7 +787,8 @@ async function main() {
                     if ('image' in json) {
                         let img = new Image();
                         img.src = json.image;
-                        img.style = "display: block; margin: auto; background-color:#fffffc;";
+                        //img.style = "display: block; margin: auto; background-color:#fffffc;";
+                        img.style = "display: block; margin: auto;";
                         display_cell.appendChild(img);
                     };
                     if ('show' in json) display_cell.innerHTML='<p>'+json.show+'</p>';

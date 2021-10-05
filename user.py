@@ -820,7 +820,7 @@ class RakudanaHelp(Scene):
             return SCENE_TERMINATE
         if any(['詳細' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("詳細を案内するページへ飛びます。", 2)
-            url = 'https://yo-sato.com/rakudana/index.html'
+            url = 'https://rakudana.com:8080/www/doc/index.html'
             await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
             return SCENE_LEAVE
         elif any([m['surface'].startswith('戻') for m in morphs]) or selection == '2':
