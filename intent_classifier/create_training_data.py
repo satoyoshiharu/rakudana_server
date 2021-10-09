@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
   model = KeyedVectors.load('../wordvector/wv.model')
 
-  df_others = pd.read_csv('/media/sf_E_DRIVE/研究社/ej/kej.txt', header=None, sep='\t', names=['SENTENCE'])
+  df_others = pd.read_csv('/media/sf_E_DRIVE/K/ej/kej.txt', header=None, sep='\t', names=['SENTENCE'])
   df_others = df_others[df_others['SENTENCE']!='']
   df_others['INTENT'] = com.INTENT_OTHERS #<--0
 

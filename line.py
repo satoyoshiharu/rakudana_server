@@ -28,6 +28,7 @@ from linebot.models import (
 )
 import ssl
 import config
+import line_config
 import subprocess
 import shlex
 import datetime
@@ -35,8 +36,8 @@ import ocr
 
 app = Flask(__name__)
 
-line_bot_api = LineBotApi(config.LINE_CHANNEL_ACCESS_TOKEN)
-parser = WebhookParser(config.LINE_CHANNEL_SECRET)
+line_bot_api = LineBotApi(line_config.LINE_CHANNEL_ACCESS_TOKEN)
+parser = WebhookParser(line_config.LINE_CHANNEL_SECRET)
 
 def log(str):
     app.logger.info(str)
@@ -66,37 +67,21 @@ def line():
             log("userId: " + event.source.user_id)
             userId = event.source.user_id
             profile = line_bot_api.get_profile(userId)
-            line_bot_api.push_message(config.LINE_ADMIN_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
-            line_bot_api.push_message(config.LINE_ADMIN2_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
-            line_bot_api.push_message(config.LINE_ADMIN3_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
+            line_bot_api.push_message(line_config.LINE_ADMIN_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
+            line_bot_api.push_message(line_config.LINE_ADMIN2_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
+            line_bot_api.push_message(line_config.LINE_ADMIN3_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
             #TODO: check whther I need to add new entry or already existing one????
 
         if isinstance(event, FollowEvent) or isinstance(event, JoinEvent) or isinstance(event, MemberJoinedEvent):
             log("userId: " + event.source.user_id)
             userId = event.source.user_id
             profile = line_bot_api.get_profile(userId)
-            line_bot_api.push_message(config.LINE_ADMIN_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
-            line_bot_api.push_message(config.LINE_ADMIN2_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
-            line_bot_api.push_message(config.LINE_ADMIN3_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
+            line_bot_api.push_message(line_config.LINE_ADMIN_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
+            line_bot_api.push_message(line_config.LINE_ADMIN2_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
+            line_bot_api.push_message(line_config.LINE_ADMIN3_USERID, TextSendMessage(text=f"{profile.display_name}さんのLINE-ID：{userId}"))
 
         #jpg memo handling to register join records
 
-        '''
-        https://developers.line.biz/ja/reference/messaging-api/#message-event
-        image message is in a format'
-         {"events":[
-	        {
-		        "type":"message",
-		        "replyToken":"3f24698e93294085aa45c876ea46a555",
-		        "source":{"userId":"U73303fce43ff02051ca356e36998145a","type":"user"},
-		        "timestamp":1612617311575,
-		        "mode":"active",
-		        "message":{"type":"image","userid":"13511902700118","contentProvider":{"type":"line"}}
-	        }
-        ],
-        "destination":"U9958e0c81ba7f5bbd48e64c2a1202469"
-        }
-        '''
         if isinstance(event, MessageEvent) and isinstance(event.message, ImageMessage):
             message_content = line_bot_api.get_message_content(event.message.id)
             # use unique name to work around line uses cache to forward the image
@@ -106,12 +91,12 @@ def line():
                 for chunk in message_content.iter_content():
                     f.write(chunk)
             # forward to administrator
-            line_bot_api.push_message(config.LINE_ADMIN_USERID,
+            line_bot_api.push_message(line_config.LINE_ADMIN_USERID,
                                       ImageSendMessage(
                                           original_content_url='https://rakudana.com:8080/record/' + image_file_name + '.jpg',
                                           preview_image_url='https://rakudana.com:8080/record/' + image_file_name + '.jpg'
                                       ))
-            line_bot_api.push_message(config.LINE_ADMIN2_USERID,
+            line_bot_api.push_message(line_config.LINE_ADMIN2_USERID,
                                       ImageSendMessage(
                                           original_content_url='https://rakudana.com:8080/record/' + image_file_name + '.jpg',
                                           preview_image_url='https://rakudana.com:8080/record/' + image_file_name + '.jpg'
@@ -124,11 +109,11 @@ def line():
         # forward to admin
         if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
             log(f"{profile.display_name}さんから：{event.message.text}")
-            line_bot_api.push_message(config.LINE_ADMIN_USERID,
+            line_bot_api.push_message(line_config.LINE_ADMIN_USERID,
                                       TextSendMessage(text=f"{profile.display_name}さんから：{event.message.text}"))
-            line_bot_api.push_message(config.LINE_ADMIN2_USERID,
+            line_bot_api.push_message(line_config.LINE_ADMIN2_USERID,
                                       TextSendMessage(text=f"{profile.display_name}さんから：{event.message.text}"))
-            line_bot_api.push_message(config.LINE_ADMIN3_USERID,
+            line_bot_api.push_message(line_config.LINE_ADMIN3_USERID,
                                       TextSendMessage(text=f"{profile.display_name}さんから：{event.message.text}"))
             #echo back
             #line_bot_api.reply_message(event.reply_token,TextSendMessage(text=event.message.text))

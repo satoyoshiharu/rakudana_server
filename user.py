@@ -7,6 +7,7 @@ import traceback
 import signal
 import sys
 import config
+import line_config
 import json
 import ssl
 import urllib.request
@@ -229,10 +230,10 @@ def send_to_line(lineid, message):
         line_bot_api.push_message(lineid, TextSendMessage(text=message))
         print(f'sent to {lineid}: {message}')
     else:
-        line_bot_api.push_message(config.LINE_ADMIN_USERID, TextSendMessage(text=message))
-        line_bot_api.push_message(config.LINE_ADMIN2_USERID, TextSendMessage(text=message))
-        line_bot_api.push_message(config.LINE_ADMIN3_USERID, TextSendMessage(text=message))
-        line_bot_api.push_message(config.LINE_ADMIN4_USERID, TextSendMessage(text=message))
+        line_bot_api.push_message(line_config.LINE_ADMIN_USERID, TextSendMessage(text=message))
+        line_bot_api.push_message(line_config.LINE_ADMIN2_USERID, TextSendMessage(text=message))
+        line_bot_api.push_message(line_config.LINE_ADMIN3_USERID, TextSendMessage(text=message))
+        line_bot_api.push_message(line_config.LINE_ADMIN4_USERID, TextSendMessage(text=message))
 
 
 async def recv_json(ws):
@@ -2326,8 +2327,8 @@ def main(user_port, org, role, invoker, child_conn):
     user = User(user_port, org, role, invoker, child_conn)
     print(f'user main > user port:{user.wsPort},org:{user.org},role:{user.role},invoker:{user.invoker}')
 
-    line_bot_api = LineBotApi(config.LINE_CHANNEL_ACCESS_TOKEN)
-    line_parser = WebhookParser(config.LINE_CHANNEL_SECRET)
+    line_bot_api = LineBotApi(line_config.LINE_CHANNEL_ACCESS_TOKEN)
+    line_parser = WebhookParser(line_config.LINE_CHANNEL_SECRET)
 
     app = None
     ctx = None
