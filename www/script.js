@@ -675,6 +675,7 @@ async function leave_action(json) {
         console.log('leave_action > handles finish');
 
         clear('container');
+        history.replaceState(null,null,"/www/doc/index.html");
         window.close();
         break;
     //case 'set_cookie':

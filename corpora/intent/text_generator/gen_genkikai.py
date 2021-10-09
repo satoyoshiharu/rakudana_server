@@ -1,6 +1,6 @@
 import random
 
-GENKIKAI_INTENT = ['元気かい','NPO元気かい','元気かいの件','元気かいのこと']
+GENKIKAI_INTENT = ['元気かい','元気会','NPO元気かい','NPO元気会']
 MOOD = ['えーっと','んー','えー','あの']
 
 if __name__ == "__main__":

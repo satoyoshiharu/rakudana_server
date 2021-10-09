@@ -876,13 +876,13 @@ class ConfirmFeedback(Scene):
         super().__init__(usr)
         self.user = usr
         self.parent = parent
-        self.feedback = feedback
+        self.feedbackComment = feedback
 
     async def prompt(self):
         print('ConfirmFeedback.prompt')
         text = 'このフィードバックを送りますか？'
         speech = 'このフィードバックを送りますか？'
-        display = self.feedback
+        display = self.feedbackComment
         json_text = '{' + f'"speech":"{speech}","text":"{text}","show": "{display}"' + \
                     ',"suggestions":["送信","キャンセル"]' + '}'
         await self.send_str(json_text)
@@ -899,7 +899,7 @@ class ConfirmFeedback(Scene):
             return SCENE_TERMINATE
         if any(['送信' in m['surface'] for m in morphs]) or selection == '1':
             await self.feedback("どうもありがとうございます。勉強させていただきます。", 0)
-            print(f'FEEDBACK: {json_dict["recognized"]}')
+            print(f'FEEDBACK: {self.feedbackComment}')
             return Initial(self.user)
         elif intent == com.INTENT_CANCEL or selection == '1':
             return self.parent
