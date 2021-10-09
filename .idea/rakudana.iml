@@ -4,6 +4,8 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/www/qrcodejs" />
       <excludeFolder url="file://$MODULE_DIR$/www/wave" />
+      <excludeFolder url="file://$MODULE_DIR$/corpora/intent/texts" />
+      <excludeFolder url="file://$MODULE_DIR$/corpora/ner" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
