@@ -8,6 +8,7 @@ import signal
 import sys
 import config
 import line_config
+import ip_config
 import json
 import ssl
 import urllib.request
@@ -2364,9 +2365,9 @@ def main(user_port, org, role, invoker, child_conn):
         # threading.Thread(target=on_startup, args=([manager])).start()
 
         if config.PROTOCOL == "http":
-            web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort)
+            web.run_app(app, host=ip_config.HOST_INTERNAL_IP, port=user.wsPort)
         else:
-            web.run_app(app, host=config.HOST_INTERNAL_IP, port=user.wsPort, ssl_context=ctx)
+            web.run_app(app, host=ip_config.HOST_INTERNAL_IP, port=user.wsPort, ssl_context=ctx)
 
     except Exception as e:
         print('user.main > exception {}'.format(e))

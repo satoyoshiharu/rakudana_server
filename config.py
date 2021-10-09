@@ -9,13 +9,6 @@ WS_PROTOCOL = 'wss'
 VR_STAB_TEST = False
 #VR_STAB_TEST = True
 
-if not CLOUD_INSTANCE:
-    HOST_EXTERNAL_IP = '192.168.0.19'
-    HOST_INTERNAL_IP = '192.168.0.19'
-else:
-    HOST_EXTERNAL_IP = 'rakudana.com' #35.199.188.69'
-    HOST_INTERNAL_IP = '10.138.0.2'
-
 HOST_PORT = '8080'
 
 WORKING_DIR = '/home/satoyoshiharu/hmc-dialog-server/'

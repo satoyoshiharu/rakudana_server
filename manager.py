@@ -19,6 +19,7 @@ from intent_classifier import create_training_data
 #sys.path.append(os.path.dirname(__file__))
 import user
 import config
+import ip_config
 import com
 
 
@@ -329,9 +330,9 @@ if __name__ == '__main__':
         th.start()
 
         if config.PROTOCOL == 'http':
-            web.run_app(manager, host=config.HOST_INTERNAL_IP, port=config.HOST_PORT)
+            web.run_app(manager, host=ip_config.HOST_INTERNAL_IP, port=config.HOST_PORT)
         else:
-            web.run_app(manager, host=config.HOST_INTERNAL_IP, port=config.HOST_PORT, ssl_context=ctx)
+            web.run_app(manager, host=ip_config.HOST_INTERNAL_IP, port=config.HOST_PORT, ssl_context=ctx)
 
     except Exception as e:
         print(f'Exception in manager: {e}')
