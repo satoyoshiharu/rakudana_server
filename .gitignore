@@ -22,7 +22,6 @@
 /line.py
 /line_users.py
 /names.py
-/user.dic
 /ip_config.py
 /mecab-ipa-test.py
 /confirmResv_standalone.py
@@ -31,4 +30,5 @@
 *.model
 *.vocab
 *.npy
+*.dic
 

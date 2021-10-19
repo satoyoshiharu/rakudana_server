@@ -32,7 +32,7 @@ def init_languagemodel():
 
     print(f'init_LM > ...')
 
-    tagger = MeCab.Tagger(r"-u ./user.dic -d /var/lib/mecab/dic/ipadic-utf8/")
+    tagger = MeCab.Tagger(r"-u ./genkikai.dic -u ./life.dic -d /var/lib/mecab/dic/ipadic-utf8/")
     print(f'tagger type: {type(tagger)}')
     tagger.parse('私')  # preload dictionary
     tagger.parse('110番')  # preload dictionary
@@ -42,7 +42,7 @@ def init_languagemodel():
         tokenizer = spm.SentencePieceProcessor()
         tokenizer.Load("./tokenizer/sentencepiece.model")
     elif config.TOKENIZER == config.MECAB:
-        tokenizer = MeCab.Tagger(r"-O wakati -d /var/lib/mecab/dic/ipadic-utf8/")
+        tokenizer = MeCab.Tagger(r"-O wakati -u ./life.dic -d /var/lib/mecab/dic/ipadic-utf8/")
     print(f'tokenizer loaded: {type(tokenizer)}')
 
     wordvectors = KeyedVectors.load('./wordvector/wv.model')

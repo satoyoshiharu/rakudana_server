@@ -39,7 +39,7 @@ if config.TOKENIZER == config.SENTENCE_PIECE:
     sp = spm.SentencePieceProcessor()
     sp.Load("../tokenizer/sentencepiece.model")
 elif config.TOKENIZER == config.MECAB:
-    breaker = MeCab.Tagger(r"-O wakati -d /var/lib/mecab/dic/ipadic-utf8/")
+    breaker = MeCab.Tagger(r"-O wakati -u ../life.dic -d /var/lib/mecab/dic/ipadic-utf8/")
 
 
 for src in glob.glob(DATA_FOLDER + "/texts/*"):

@@ -88,14 +88,14 @@ async def app_handler(request):
         user.contacts = [[c.split(":")[0], c.split(":")[1]] for c in contacts]
     else:
         user.contacts = []
-    print(f"app_handler > contacts: {user.contacts}")
+    print(f"[DIALOG] app_handler > contacts: {user.contacts}")
     if len(callrecs_str) > 0 and callrecs_str[0] == ",": callrecs_str = callrecs_str[1:]
     callrecs = callrecs_str.split(",")
     if len(callrecs) > 0 and callrecs != ['']:
         user.callrecs = [[c.split(":")[0], c.split(":")[1]] for c in callrecs]
     else:
         user.callrecs = []
-    print(f"app_handler > call recs: {user.callrecs}")
+    print(f"[DIALOG] app_handler > call recs: {user.callrecs}")
 
     while not user.app_close_flag:
         await asyncio.sleep(1)
@@ -167,10 +167,10 @@ class ConversationModel:
 
         try:
             while True:
-                print(f'ConversationMolde.loop > scene: {scene.__class__.__name__} prompt')
+                print(f'[DIALOG] ConversationMolde.loop > scene: {scene.__class__.__name__} prompt')
                 await scene.prompt()
                 # NER detection and Intent detection are done in decode_response
-                print(f'ConversationMolde.loop > scene: {scene.__class__.__name__} interpret')
+                print(f'[DIALOG] ConversationMolde.loop > scene: {scene.__class__.__name__} interpret')
                 scene = await scene.interpret()
                 # (1) explicit termination (2) timeout error (idle >10 minutes)
                 if scene is SCENE_TERMINATE:
@@ -243,7 +243,7 @@ async def recv_json(ws):
         try:
             while True:
                 r = await ws.receive()
-                print(f'recv_json > received (raw): {r.data}')
+                print(f'[DIALOG] recv_json > received (raw): {r.data}')
                 if type(r.data) is int:
                     print(f'recv_json > int returned {r.data}')
                     return com.ERR_TYPEERROR, None
@@ -316,7 +316,7 @@ class Scene:
         return morphs
 
     async def send_str(self, json_string):
-        print(f'send_str > {json_string}')
+        print(f'[DIALOG] send_str > {json_string}')
         try:
             if not self.ws.closed: await self.ws.send_str(json_string)
         except Exception as e:
@@ -362,19 +362,19 @@ class Scene:
         intent = -1
         if 'recognized' in json_dict:
             morphs = self.get_morphs(json_dict)
-            print(f'decode_response > morphs etected: {morphs}')
+            print(f'[DIALOG] decode_response > morphs detected: {morphs}')
 
             if self.user.invoker == 'rakudana_app':
                 # detect entities for following processing
                 self.user.ner.find_entity(morphs)
-                print(f'decode_response > entity detected: {self.user.ner.entitylist}')
+                print(f'[DIALOG] decode_response > entity detected: {self.user.ner.entitylist}')
                 # detect intention
                 intent = self.detect_intent(json_dict['recognized'])
-                print(f'decode_response > intent detected: {com.intents[intent]}')
+                print(f'[DIALOG] decode_response > intent detected: {com.intents[intent]}')
 
         if 'action' in json_dict and json_dict['action'] == 'button':
             selection = json_dict['selection']
-            print(f'decode_response > button action detected: {selection}')
+            print(f'[DIALOG] decode_response > button action detected: {selection}')
 
         return sts, json_dict, morphs, selection, intent
 
@@ -414,10 +414,18 @@ class Initial(Scene):
     async def interpret(self):
         print('Initial.interpret')
 
-        if self.counter > 5:
+        if self.counter > 3:
             await self.feedback("終了します",1)
             return SCENE_TERMINATE
+
         sts, json_dict, morphs, selection, intent = await self.decode_response()
+
+        if sts == com.ERR_TIMEOUT:
+            await self.send_str('{"feedback":"よく聞き取れませんでした。"}')
+            self.counter += 1
+            await asyncio.sleep(1)
+            return self
+
         if sts != com.SUCCESS:
             print('Initial.interpret > decode_response failed')
             await self.feedback("終了します", 1)
@@ -462,7 +470,7 @@ class Initial(Scene):
                 return await self.act_open_map(json_dict['recognized'])
             elif intent == com.INTENT_NEWS:
                 await self.feedback("ニュースですね", 0)
-                return await self.act_open_news()
+                return await self.act_open_news(json_dict, morphs)
             elif intent == com.INTENT_WEATHER:
                 await self.feedback("天気ですね", 0)
                 return await self.act_open_weather()
@@ -487,7 +495,7 @@ class Initial(Scene):
                 return await self.act_myreservation()
             elif intent == com.INTENT_GENKIKAI_NEWS:
                 await self.feedback("げんきかいからのお知らせですね", 0)
-                return await self.act_news()
+                return await self.act_genkikai_news()
             elif intent == com.INTENT_GENKIKAI_MANAGE_RECORDS:
                 await self.feedback("げんきかいの履歴管理ですね", 0)
                 return Reserve(self.user, None)
@@ -497,6 +505,12 @@ class Initial(Scene):
 
             elif intent == com.INTENT_OTHERS:
                 return await self.act_others(json_dict)
+
+            self.error = com.INF_NO_TARGET_WORDS
+            await self.send_str('{"feedback":"よく聞き取れませんでした。"}')
+            self.counter += 1
+            await asyncio.sleep(1)
+            return self
 
         elif self.user.org == 'genkikai':
 
@@ -525,7 +539,7 @@ class Initial(Scene):
                     return await self.act_myreservation()
                 if any(['知ら' in m['surface'] for m in morphs]) or selection == '2':
                     await self.feedback("お知らせページを開きます", 2)
-                    return await self.act_news()
+                    return await self.act_genkikai_news()
                 if any(['ポイント' in m['surface'] for m in morphs]) or selection == '3':
                     await self.feedback("ポイントを表示します", 0)
                     return await self.act_mypoint()
@@ -549,6 +563,9 @@ class Initial(Scene):
 
     async def act_others(self, json_dict):
         print('act_others')
+        question = f"「{json_dict['recognized']}」ですか？　インターネットを検索します。"
+        await self.feedback(question, 2)
+
         query = urllib.parse.quote(json_dict['recognized'])
         url = 'https://www.google.co.jp/search'
         await self.send_str('{' + f'"action":"goto_url","url":"{url}?q={query}&oq={query}&hl=ja&ie=UTF-8"' + '}') # go directly
@@ -668,6 +685,7 @@ class Initial(Scene):
         # invoke Android google map app.
         # https://www.google.co.jp/map/?hl=ja will not provide mike option
         # In addition, let android analyze from/to parsing
+        await self.feedback("グーグルマップに指示します。", 0)
         url = f'apps://rakudana.com/client_app/map'
         q = urllib.parse.quote(query)
         json_text = '{' + f'"action":"invoke_app","url":"{url}?q={q}"' + '}'
@@ -675,20 +693,26 @@ class Initial(Scene):
         await self.send_str(json_text)
         return SCENE_LEAVE
 
-    async def act_open_news(self):
+    async def act_open_news(self, json_dict, morphs):
         print('act_open_news')
-        url = 'https://news.yahoo.co.jp/'
-        await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}') # go directly
-        # direct to https://www.smartnews.com/ja/ or invoke the app
-        # url = f'apps://rakudana.com/client_app/news'
-        # json_text = '{' + f'"action":"invoke_app","url":"{url}' + '}'
-        # print(f'act_make_call > json_text: {json_text} -> browser')
-        # await self.send_str(json_text)
+        surface = [m['surface'] for m in morphs]
+        i = surface.index('ニュース')
+        if i > 1 and (surface[i-1] == 'の' or surface[i-1] == 'に関する'):
+            await self.feedback("グーグルで検索します。", 1)
+            query = urllib.parse.quote(json_dict['recognized'])
+            url = 'https://www.google.co.jp/search'
+            await self.send_str(
+                '{' + f'"action":"goto_url","url":"{url}?q={query}&oq={query}&hl=ja&ie=UTF-8"' + '}')  # go directly
+        else:
+            await self.feedback("ヤフーニュースサイトに飛びます。",1)
+            url = 'https://news.yahoo.co.jp/'
+            await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}') # go directly
         return SCENE_LEAVE
 
     async def act_open_weather(self):
         print('act_open_weather')
         # direct to hhttps://www.weathernews.jp
+        await self.feedback("ウェザーニュースのサイトに飛びます。", 0)
         url = 'https://www.weathernews.jp/'
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
@@ -698,6 +722,7 @@ class Initial(Scene):
     async def act_open_calculator(self):
         print('act_open_calculator')
         # direct to hhttps://www.weathernews.jp
+        await self.feedback("電卓サイトに飛びます。", 0)
         url = f'https://www.webdentaku.com/'
         json_text = '{' + f'"action":"goto_url","url":"{url}"' + '}'
         print(f'act_make_call > json_text: {json_text} -> browser')
@@ -763,7 +788,7 @@ class Initial(Scene):
         await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
         return SCENE_LEAVE
 
-    async def act_news(self):
+    async def act_genkikai_news(self):
         print('act_news')
         url = 'https://npogenkikai.net/news'
         await self.send_str('{' + f'"action":"goto_url","url":"{url}"' + '}')
@@ -802,7 +827,7 @@ class RakudanaHelp(Scene):
     async def prompt(self):
         print('RakudanaHelp.prompt')
         text = 'シニアがスマホを使うことをお手伝いします。'
-        speech = 'シニアがスマホを使うことをお手伝いします。やりたいことを、しゃべって下さい。'
+        speech = 'シニアがスマホを使うことをお手伝いします。詳しくは「詳細」をご覧ください。それ以外は「戻る」を選んで下さい。'
         display = '<br>例：電話をかける、ショートメッセージを送る、手書きメモを保存する、' +\
                     'お気に入りページをホーム画面に置く、今日の天気は、電卓、近くのコンビニはどこ、ニュースを読む、' +\
                     'インターネットの意味は、東急バスの時刻表、大根のレシピ、電球の値段比較、NPOげんきかいの予約確認、など。'
@@ -2377,6 +2402,6 @@ def main(user_port, org, role, invoker, child_conn):
         print('user.main > finally')
         #user.pipe.send('finish$')
         history = [x.__class__.__name__ for x in user.dialog_history]
-        print(f'>>>DIALOG HISTORY: {history}')
+        print(f'[DIALOG] HISTORY: {history}')
         # time.sleep(2) # for shutdown cor to execute
         # sys.exit(0)

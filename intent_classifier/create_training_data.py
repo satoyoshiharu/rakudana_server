@@ -67,7 +67,7 @@ if __name__ == '__main__':
     tokenizer = spm.SentencePieceProcessor()
     tokenizer.Load("../tokenizer/sentencepiece.model")
   elif config.TOKENIZER == config.MECAB:
-    tokenizer = MeCab.Tagger(r"-O wakati -d /var/lib/mecab/dic/ipadic-utf8/")
+    tokenizer = MeCab.Tagger(r"-O wakati -u ../life.dic -d /var/lib/mecab/dic/ipadic-utf8/")
 
   model = KeyedVectors.load('../wordvector/wv.model')
 

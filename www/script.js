@@ -792,7 +792,12 @@ async function main() {
                         img.style = "display: block; margin: auto;";
                         display_cell.appendChild(img);
                     };
-                    if ('show' in json) display_cell.innerHTML='<p>'+json.show+'</p>';
+                    if ('show' in json) {
+                        display_cell.innerHTML='<p>'+json.show+'</p>';
+                    }
+                    if ('feedback' in json) {
+                        display_cell.innerHTML='<p>'+json.feedback+'</p>';
+                    }
                     fragment.appendChild(display_box);
 
                     if ('suggestions' in json) {

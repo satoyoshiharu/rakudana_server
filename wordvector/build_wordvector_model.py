@@ -46,6 +46,10 @@ wv_model.wv.save('wv.model')
 model = KeyedVectors.load('wv.model')
 
 print('父->', model.most_similar(positive='父'))
+print('ユニクロ->', model.most_similar(positive='ユニクロ'))
+print('メンチカツ->', model.most_similar(positive='メンチカツ'))
 print('人vs父:', model.similarity('人','父'))
 print('物vs父:', model.similarity('物','父'))
+print('メンチカツvs料理', model.similarity('メンチカツ','料理'))
+print('ラーメンvsレストラン', model.similarity('ラーメン','レストラン'))
 

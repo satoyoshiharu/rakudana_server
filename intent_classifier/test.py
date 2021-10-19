@@ -12,7 +12,7 @@ if config.TOKENIZER == config.SENTENCE_PIECE:
     tokenizer = spm.SentencePieceProcessor()
     tokenizer.Load("../tokenizer/sentencepiece.model")
 elif config.TOKENIZER == config.MECAB:
-    tokenizer = MeCab.Tagger(r"-O wakati -d /var/lib/mecab/dic/ipadic-utf8/")
+    tokenizer = MeCab.Tagger(r"-O wakati -u ../life.dic -d /var/lib/mecab/dic/ipadic-utf8/")
 
 wv = KeyedVectors.load('../wordvector/wv.model')
 print('父', wv.most_similar(positive='父'))
@@ -65,10 +65,13 @@ with torch.no_grad():  # batch size is len(dataset_valid)
     test('ページをホーム画面に置く')
     test('コンビニはどこにある')
     test('近くのコンビニはどこ')
+    test('ユニクロを探して')
+    test('近くのラーメン屋さん')
     test('ニュースを開いて')
     test('今日のニュースを出して')
     test('今日の天気')
     test('今日の天気は')
+    test('天気を調べる')
     test('電卓')
 
     test('元気かい')
